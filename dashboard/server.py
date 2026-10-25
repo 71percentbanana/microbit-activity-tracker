@@ -45,10 +45,11 @@ sys.path.insert(0, GESTURE_DIR)
 import train as trainer
 import simulator
 import activity
-from gesture_features import GESTURES, GESTURE_NAMES, GESTURE_SHORT, GESTURE_GROUPS, LED_CODES, MIN_SAMPLES, extract_features
+from gesture_features import (GESTURES, GESTURE_NAMES, GESTURE_SHORT, GESTURE_GROUPS, LED_CODES, MIN_SAMPLES,
+                              extract_features, add_custom_gesture, remove_custom_gesture)
 
 # Predictions below this probability are reported as "not sure"
-CONFIDENCE_THRESHOLD = 0.5
+CONFIDENCE_THRESHOLD = 0.3
 # Suggested number of recordings per gesture
 TARGET_PER_GESTURE = 30
 
@@ -83,6 +84,7 @@ class Hub:
         self.history = deque(maxlen=12)
         self.saved_paths = []  # recordings saved this session, for undo
         self.person = 'sim' if demo else self.load_settings().get('person', '')
+        self.program = None  # 'gesture' or 'activity_recorder', detected from the serial data
         self.training = False
         self.model = None
         self.metrics = None
@@ -147,6 +149,7 @@ class Hub:
             'team': self.team(),
             'target': TARGET_PER_GESTURE,
             'link': self.link_status,
+            'program': self.program,
             'demo': self.demo,
             'has_model': self.model is not None,
             'metrics': self.metrics,
@@ -178,6 +181,21 @@ class Hub:
         changed = self.activity.on_sample(time.time(), x, y, z)
         if changed and self.view == 'activity':
             self.send_to_microbit("ACT:" + changed.upper())
+
+    def on_device_stats(self, sample_count: float, strength: float, level: float, average: float, peak: float):
+        """Statistics computed on the micro:bit by the activity recording program."""
+        self.broadcast('device', {'samples': int(sample_count), 'strength': strength, 'level': level,
+                                  'average': round(average, 1), 'peak': peak})
+
+    def set_program(self, program: str):
+        """Which MakeCode program the micro:bit is running, told apart by its line format."""
+        if program == self.program:
+            return
+        self.program = program
+        if program == 'activity_recorder':
+            self.broadcast('notice', {'level': 'info', 'text': 'The micro:bit is running the activity recording program. Use the Activity tab: '
+                                      'press A on the micro:bit to start streaming, B to stop. Gestures need gesture_classifier.hex.'})
+        self.broadcast('state', self.state())
 
     def on_recording(self, samples: list, duration: float, truth: str = None):
         """Called when button A is released with the samples recorded while it was held."""
@@ -213,12 +231,13 @@ class Hub:
         best = int(np.argmax(probs))
         gesture, confidence = classes[best], float(probs[best])
         confident = confidence >= CONFIDENCE_THRESHOLD
-        self.send_to_microbit(LED_CODES[gesture] if confident else "?")
+        self.send_to_microbit(LED_CODES.get(gesture, 'CUSTOM') if confident else "?")
         result = {
             'gesture': gesture,
-            'name': GESTURE_NAMES[gesture],
+            'name': GESTURE_NAMES.get(gesture, gesture),
             'confidence': confidence,
             'confident': confident,
+            'threshold': CONFIDENCE_THRESHOLD,
             'probs': {c: float(p) for c, p in zip(classes, probs)},
             'n_samples': len(rec),
             'duration_s': round(duration, 2),
@@ -264,6 +283,27 @@ class Hub:
                 os.remove(path)
                 self.broadcast('notice', {'level': 'info', 'text': f'Deleted last recording ({os.path.basename(path)}).'})
                 break
+        self.broadcast('state', self.state())
+
+    def add_gesture(self, name: str):
+        try:
+            gid = add_custom_gesture(name)
+        except ValueError as e:
+            self.broadcast('notice', {'level': 'warn', 'text': str(e)})
+            return
+        self.label = gid
+        self.mode = 'record'
+        self.broadcast('notice', {'level': 'good', 'text': f'Added "{GESTURE_NAMES[gid]}". Hold A to record it, about {TARGET_PER_GESTURE} times, then Train.'})
+        self.broadcast('state', self.state())
+
+    def remove_gesture(self, gid: str):
+        if not gid.startswith('c_') or gid not in GESTURES:
+            return
+        name = GESTURE_NAMES[gid]
+        remove_custom_gesture(gid)
+        if self.label == gid:
+            self.label = GESTURES[0]
+        self.broadcast('notice', {'level': 'info', 'text': f'Removed "{name}". Its recordings are kept and come back if you add it again. Train to update the model.'})
         self.broadcast('state', self.state())
 
     def set_person(self, name: str):
@@ -367,7 +407,19 @@ class SerialLink(threading.Thread):
                 recording = None
                 continue
             parts = line.split(',')
-            if len(parts) != 3:
+            if len(parts) == 8:
+                # Activity recording program (microbit/makecode_program.js), sent while recording:
+                # sampleCount,x,y,z,strength,activityLevel,averageActivity,peakActivity
+                try:
+                    values = [float(p) for p in parts]
+                except ValueError:
+                    continue
+                self.hub.on_device_stats(*values[:1], *values[4:])
+                self.hub.set_program('activity_recorder')
+                parts = parts[1:4]
+            elif len(parts) == 3:
+                self.hub.set_program('gesture')
+            else:
                 continue
             try:
                 x, y, z = (float(p) for p in parts)
@@ -464,6 +516,10 @@ class Handler(BaseHTTPRequestHandler):
             self.hub.set_label(body.get('label'))
         elif self.path == '/api/view':
             self.hub.set_view(body.get('view'))
+        elif self.path == '/api/gestures/add':
+            self.hub.add_gesture(body.get('name'))
+        elif self.path == '/api/gestures/remove':
+            self.hub.remove_gesture(str(body.get('id', '')))
         elif self.path == '/api/person':
             self.hub.set_person(body.get('person'))
         elif self.path == '/api/reset':

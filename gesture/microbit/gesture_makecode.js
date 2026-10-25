@@ -17,6 +17,7 @@
 //   CIRCLE / SHAKE / TILT_LEFT / TILT_RIGHT /
 //   TAP / DOUBLE_TAP                            recognised gesture
 //   1 ... 9                                     recognised air-written number
+//   CUSTOM                                      recognised custom gesture (shows a star)
 //   ?                                           not confident
 //   SAVED                                       recording saved (Record mode)
 //   ACT:WALKING / ACT:JOGGING / ACT:UPSTAIRS /
@@ -253,6 +254,15 @@ serial.onDataReceived(serial.delimiters(Delimiters.NewLine), function () {
             . # . # .
             . # . # .
             . . . . .
+            `))
+    } else if (reply == "CUSTOM") {
+        // A custom gesture added from the dashboard: star
+        show(images.createImage(`
+            . . # . .
+            # # # # #
+            . # # # .
+            . # . # .
+            # . . . #
             `))
     } else if (reply == "SAVED") {
         show(images.iconImage(IconNames.Yes))

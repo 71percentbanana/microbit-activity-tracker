@@ -20,6 +20,8 @@ This project is separate from the activity tracker in the parent folder and shar
 
 **Numbers 1–9** — write the digit in the air in front of you, as if on a whiteboard
 
+**Custom gestures** — click **+ Add gesture** on the dashboard, name it (for example *Zigzag*), record ~30, then **Train model**. Custom gestures are saved in [`custom_gestures.json`](custom_gestures.json), so teammates get them with `git pull`; the micro:bit shows a star when it recognises one. **Remove** takes a custom gesture off the list but keeps its recordings, which come back if you add it again.
+
 Start every gesture with the board flat, face up (LEDs facing the ceiling), the same way every time.
 
 The micro:bit LEDs show the result: arrows for swipes, up/down and tilts, a small / big square for push / pull, one / two bars for tap / double tap, and the digit itself for numbers.
@@ -82,7 +84,7 @@ python train.py
 This prints test accuracy, cross-validation accuracy and — once two or more people have recorded — the accuracy on each person when the model is trained without them. It saves the model, metrics and `models/confusion_matrix.png`.
 
 ### 6. Predict
-Click **Predict**, hold A, do a gesture, release. The dashboard shows the gesture, its confidence and the probability of every class, and the micro:bit shows an arrow / icon. Predictions below 50% confidence show `?`.
+Click **Predict**, hold A, do a gesture, release. The dashboard shows the gesture, its confidence and the probability of every class, and the micro:bit shows an arrow / icon. Predictions below 30% confidence show `?` (set by `CONFIDENCE_THRESHOLD` in `dashboard/server.py`).
 
 ### Demo Without Hardware
 ```bash

@@ -8,7 +8,7 @@ never mixed with real recordings in data/raw/.
 import os
 import numpy as np
 
-from gesture_features import GESTURES, DIGITS
+from gesture_features import BUILTIN_GESTURES, DIGITS
 
 # Board lying flat, face up: gravity reads about -1000 mg on Z
 GRAVITY = np.array([0.0, 0.0, -1000.0])
@@ -17,7 +17,8 @@ MAX_MG = 2047
 SAMPLE_PERIOD = 0.043  # seconds between readings, matching the real micro:bit stream
 
 # Air-written digits are too intricate to fake convincingly, so demo mode leaves them out
-SIMULATED = [g for g in GESTURES if g not in DIGITS]
+# (custom gestures too, since there is no way to know what they look like)
+SIMULATED = [g for g in BUILTIN_GESTURES if g not in DIGITS]
 
 
 def idle_sample(rng: np.random.Generator) -> np.ndarray:

@@ -150,6 +150,8 @@
   .gestures { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 8px; }
   .ggroup { grid-column: 1 / -1; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin: 8px 0 0; }
   .ggroup:first-child { margin-top: 0; }
+  .gesture.add { border-style: dashed; color: var(--text-secondary); }
+  .gesture.add .gname { color: var(--text-primary); }
   .gesture {
     display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 2px 10px; align-items: center; text-align: left;
     padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: transparent;
@@ -237,6 +239,10 @@
   .timeline .seg { fill: var(--accent); cursor: default; }
   .timeline .seg:hover { fill: var(--text-primary); }
   .spent { display: grid; gap: 8px; }
+  .device { margin-top: 16px; }
+  .device .tiles { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; margin: 6px 0 0; }
+  .device .tile { padding: 8px 10px; }
+  .device .tv { font-size: 18px; }
   .spent .prob { grid-template-columns: 92px 1fr 64px; }
   .about p { margin: 0 0 10px; color: var(--text-secondary); font-size: 13px; }
   .about ul { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: 13px; display: grid; gap: 4px; }
@@ -284,6 +290,11 @@
     <span><b>Demo mode</b> — gestures and recordings are simulated, not from a micro:bit. Run <kbd>python server.py</kbd> without <kbd>--demo</kbd> for real data.</span>
   </div>
 
+  <div class="banner" id="program-banner">
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 1.5 15 14H1z" fill="var(--warning)"/><path d="M8 6v3.5M8 11.5v.3" stroke="#0b0b0b" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <span><b>Gestures need the gesture program.</b> The micro:bit is running the activity recording program, which can't mark where a gesture starts and ends. Drag <kbd>gesture\microbit\gesture_classifier.hex</kbd> onto the MICROBIT drive, or use the <b>Activity</b> tab.</span>
+  </div>
+
   <div class="grid">
     <section class="card" data-view="gesture">
       <h2>Live prediction</h2>
@@ -297,6 +308,7 @@
       <p class="desc" id="act-desc">Classified from the last 2 seconds of readings, twice a second.</p>
       <div class="hero empty" id="act-hero"></div>
       <div class="probs" id="act-probs"></div>
+      <div class="device" id="act-device" hidden></div>
     </section>
 
     <section class="card">
@@ -325,6 +337,7 @@
         <button class="btn" id="undo">Undo last recording</button>
         <button class="btn" id="reset-one">Reset gesture</button>
         <button class="btn" id="reset-all">Reset all</button>
+        <button class="btn" id="remove-gesture" hidden>Remove gesture</button>
         <span class="spacer"></span>
         <button class="btn primary" id="train">Train model</button>
       </div>
@@ -408,7 +421,14 @@ const GLYPHS = {
 };
 // Air-written digits d1..d9 are drawn as the number itself
 for (let n = 1; n <= 9; n++) GLYPHS[`d${n}`] = `<text x="12" y="17.5" text-anchor="middle" font-size="16" font-weight="700" fill="currentColor" stroke="none" font-family="system-ui, sans-serif">${n}</text>`;
-const glyph = (id) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${GLYPHS[id] || GLYPHS.unknown}</svg>`;
+GLYPHS.plus = '<path d="M12 5v14M5 12h14"/>';
+// Custom gestures (ids starting "c_") are drawn as the first letter of their name
+const letterGlyph = (ch) => `<text x="12" y="17.5" text-anchor="middle" font-size="15" font-weight="700" fill="currentColor" stroke="none" font-family="system-ui, sans-serif">${esc(ch)}</text>`;
+const glyph = (id) => {
+  let inner = GLYPHS[id];
+  if (!inner && String(id).startsWith('c_')) inner = letterGlyph((nameOf(id) || '?')[0].toUpperCase());
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner || GLYPHS.unknown}</svg>`;
+};
 const nameOf = (id) => (state?.gestures.find((g) => g.id === id) || {}).name || id;
 const shortOf = (id) => (state?.gestures.find((g) => g.id === id) || {}).short || id;
 
@@ -456,6 +476,10 @@ function connect() {
   es.addEventListener('link', (e) => { if (state) { state.link = JSON.parse(e.data); renderLink(state.link); } });
   es.addEventListener('training', () => { if (state) { state.training = true; renderRecord(); } });
   es.addEventListener('notice', (e) => { const n = JSON.parse(e.data); toast(n.level, n.text); });
+  es.addEventListener('device', (e) => {
+    if (!state) return;
+    state.device = { ...JSON.parse(e.data), at: Date.now() };
+  });
   es.addEventListener('activity', (e) => {
     if (!state) return;
     const d = JSON.parse(e.data);
@@ -471,6 +495,7 @@ function connect() {
 function renderAll() {
   if (!state) return;
   $('#demo-banner').classList.toggle('show', state.demo);
+  $('#program-banner').classList.toggle('show', state.view === 'gesture' && state.program === 'activity_recorder');
   document.querySelectorAll('[data-view]').forEach((el) => { el.hidden = el.dataset.view !== state.view; });
   $('#view-gesture').setAttribute('aria-pressed', state.view === 'gesture');
   $('#view-activity').setAttribute('aria-pressed', state.view === 'activity');
@@ -491,6 +516,7 @@ function renderLink(link) {
   if (link.connected) {
     color = 'var(--good)';
     text = link.port === 'DEMO' ? 'Demo micro:bit (simulated)' : `micro:bit on ${link.port}`;
+    if (state && state.program === 'activity_recorder') text += ' · activity recorder program';
   } else {
     color = 'var(--critical)';
     text = link.error || 'micro:bit not connected';
@@ -526,7 +552,7 @@ function renderPrediction(p, fresh) {
   const title = p.confident ? p.name : 'Not sure';
   const meta = p.confident
     ? `${pct(p.confidence)} confident · ${p.duration_s}s gesture · ${p.time}`
-    : `Best guess ${esc(p.name)} at ${pct(p.confidence)} — below the 50% threshold · ${p.time}`;
+    : `Best guess ${esc(p.name)} at ${pct(p.confidence)} — below the ${p.threshold != null ? pct(p.threshold) + ' ' : 'confidence '}threshold · ${p.time}`;
   const truth = p.truth ? ` · simulated ${esc(nameOf(p.truth))} ${p.truth === p.gesture ? '✓' : '✗'}` : '';
   hero.className = 'hero';
   hero.innerHTML = `<div class="glyph">${glyph(id)}</div><div><div class="name">${esc(title)}</div><div class="meta">${meta}${truth}</div></div>`;
@@ -552,7 +578,16 @@ function renderRecord() {
       <span class="meter"><span style="width:${Math.min(100, (n / state.target) * 100)}%"></span></span>
     </button>`;
   }).join('');
-  wrap.querySelectorAll('.gesture').forEach((b) => b.addEventListener('click', () => selectGesture(b.dataset.id)));
+  const hasCustom = state.gestures.some((g) => g.group === 'Custom');
+  wrap.insertAdjacentHTML('beforeend', `${hasCustom ? '' : '<div class="ggroup">Custom</div>'}<button class="gesture add" id="add-gesture">
+      ${glyph('plus')}<span class="gname">Add gesture</span>
+      <span class="gcount">Your own movement</span>
+    </button>`);
+  wrap.querySelectorAll('.gesture[data-id]').forEach((b) => b.addEventListener('click', () => selectGesture(b.dataset.id)));
+  $('#add-gesture').addEventListener('click', () => {
+    const name = prompt('Name of the new gesture (for example Zigzag, Wave, Letter A):');
+    if (name && name.trim()) post('/api/gestures/add', { name: name.trim() });
+  });
 
   const total = Object.values(state.counts).reduce((a, b) => a + b, 0);
   const input = $('#person');
@@ -569,6 +604,9 @@ function renderRecord() {
   $('#reset-one').textContent = `Reset ${nameOf(state.label)}`;
   $('#reset-one').disabled = !state.counts[state.label];
   $('#reset-all').disabled = total === 0;
+  const custom = state.label.startsWith('c_');
+  $('#remove-gesture').hidden = !custom;
+  if (custom) $('#remove-gesture').textContent = `Remove ${nameOf(state.label)}`;
   const trainBtn = $('#train');
   trainBtn.disabled = state.training;
   trainBtn.textContent = state.training ? 'Training…' : 'Train model';
@@ -699,7 +737,10 @@ function renderActivityLive() {
     const last = a.latest || a.history[a.history.length - 1];
     if (!last || Date.now() / 1000 - last.t > 3) {
       hero.className = 'hero empty';
-      hero.innerHTML = `<div class="glyph" style="color:var(--text-muted)">${glyph('unknown')}</div><div><div class="name">Waiting for readings…</div><div class="meta">Needs 2 seconds of continuous data from the micro:bit.</div></div>`;
+      const tip = state.program === 'activity_recorder'
+        ? 'Press <b>A</b> on the micro:bit to start streaming (B stops). Results appear after 2 seconds.'
+        : 'Needs 2 seconds of continuous data from the micro:bit.';
+      hero.innerHTML = `<div class="glyph" style="color:var(--text-muted)">${glyph('unknown')}</div><div><div class="name">Waiting for readings…</div><div class="meta">${tip}</div></div>`;
       probs.innerHTML = '';
     } else {
       hero.className = 'hero';
@@ -710,8 +751,22 @@ function renderActivityLive() {
       }).join('') : '';
     }
   }
+  renderDevice();
   renderTimeline();
   renderSpent();
+}
+
+// Statistics calculated on the micro:bit itself by the activity recording program
+function renderDevice() {
+  const el = $('#act-device');
+  const d = state.device;
+  el.hidden = !d || state.program !== 'activity_recorder';
+  if (el.hidden) return;
+  const live = Date.now() - d.at < 2000;
+  const tile = (label, value) => `<div class="tile"><div class="tl">${label}</div><div class="tv">${value}</div></div>`;
+  el.innerHTML = `<h3>Calculated on the micro:bit${live ? '' : ' (stopped — press A to record)'}</h3><div class="tiles">
+    ${tile('Activity level', `${Math.round(d.level)} mg`)}${tile('Average', `${Math.round(d.average)} mg`)}${tile('Peak', `${Math.round(d.peak)} mg`)}${tile('Samples', d.samples.toLocaleString())}
+  </div>`;
 }
 
 function recentHistory() {
@@ -986,6 +1041,11 @@ $('#reset-all').addEventListener('click', () => {
 They are moved to gesture/data/raw_deleted, not erased. The trained model is kept until you train again.`)) post('/api/reset', { label: 'all' });
 });
 $('#train').addEventListener('click', () => post('/api/train'));
+$('#remove-gesture').addEventListener('click', () => {
+  if (confirm(`Remove the gesture "${nameOf(state.label)}"?\n\nIts recordings are kept on disk and come back if you add a gesture with the same name again.`)) {
+    post('/api/gestures/remove', { id: state.label });
+  }
+});
 document.addEventListener('keydown', (e) => {
   if (!state || state.view !== 'gesture' || e.ctrlKey || e.metaKey || e.altKey || e.target.matches('input, textarea')) return;
   if (e.key !== '[' && e.key !== ']') return;

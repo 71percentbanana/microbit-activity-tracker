@@ -6,15 +6,20 @@ summary statistic or taken from a time-normalised (resampled) copy of the signal
 Ensures consistency between training (train.py) and live prediction (server.py).
 """
 
+import os
+import re
+import json
 import numpy as np
 
 DIGITS = [f'd{n}' for n in range(1, 10)]
 
-# Gesture classes in display order
-GESTURES = [
+# Built-in gesture classes in display order
+BUILTIN_GESTURES = [
     'left', 'right', 'up', 'down', 'push', 'pull', 'circle',
     'shake', 'tilt_left', 'tilt_right', 'tap', 'double_tap',
 ] + DIGITS
+# All gesture classes: built-in plus any custom ones added from the dashboard (see below)
+GESTURES = list(BUILTIN_GESTURES)
 GESTURE_NAMES = {
     'left': 'Swipe left',
     'right': 'Swipe right',
@@ -45,6 +50,61 @@ GESTURE_GROUPS = {
 }
 # Reply sent to the micro:bit so it can show the gesture on its LEDs
 LED_CODES = {g: (g[1] if g in DIGITS else g.upper()) for g in GESTURES}
+
+# ---- Custom gestures ----
+# Added from the dashboard and stored in custom_gestures.json (committed, so teammates share them).
+# Their ids start with "c_"; recordings go in data/raw/<person>/<id>/ like any other gesture.
+CUSTOM_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_gestures.json")
+CUSTOM_GROUP = 'Custom'
+MAX_NAME_LENGTH = 24
+
+
+def load_custom_gestures() -> list:
+    try:
+        with open(CUSTOM_PATH, encoding='utf-8') as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def _apply_custom(custom: list):
+    """Rebuild the gesture tables in place, so every module that imported them sees the change."""
+    GESTURES[:] = BUILTIN_GESTURES + [c['id'] for c in custom]
+    for table in (GESTURE_NAMES, GESTURE_SHORT, GESTURE_GROUPS, LED_CODES):
+        for key in [k for k in table if k.startswith('c_')]:
+            del table[key]
+    for c in custom:
+        GESTURE_NAMES[c['id']] = c['name']
+        GESTURE_SHORT[c['id']] = c['name'][:7]
+        GESTURE_GROUPS[c['id']] = CUSTOM_GROUP
+        LED_CODES[c['id']] = 'CUSTOM'  # the micro:bit shows a star
+
+
+def add_custom_gesture(name: str) -> str:
+    """Add a custom gesture and return its id. Raises ValueError for an empty or duplicate name."""
+    name = ' '.join(str(name or '').split())[:MAX_NAME_LENGTH]
+    slug = re.sub(r'[^a-z0-9]+', '_', name.lower()).strip('_')[:20]
+    if not slug:
+        raise ValueError("Give the gesture a name using letters or numbers.")
+    gid = 'c_' + slug
+    if gid in GESTURES or name.lower() in (n.lower() for n in GESTURE_NAMES.values()):
+        raise ValueError(f'A gesture called "{name}" already exists.')
+    custom = load_custom_gestures() + [{'id': gid, 'name': name}]
+    with open(CUSTOM_PATH, 'w', encoding='utf-8') as f:
+        json.dump(custom, f, indent=2)
+    _apply_custom(custom)
+    return gid
+
+
+def remove_custom_gesture(gid: str):
+    """Remove a custom gesture from the list. Its recordings stay on disk and come back if it is re-added."""
+    custom = [c for c in load_custom_gestures() if c['id'] != gid]
+    with open(CUSTOM_PATH, 'w', encoding='utf-8') as f:
+        json.dump(custom, f, indent=2)
+    _apply_custom(custom)
+
+
+_apply_custom(load_custom_gestures())
 
 # Recordings shorter than this are treated as accidental button presses (~0.25 s at ~23 readings/s)
 MIN_SAMPLES = 6
