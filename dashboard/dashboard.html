@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>micro:bit ML Dashboard</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --wash: rgba(11, 11, 11, 0.04);
+    --band: rgba(42, 120, 214, 0.10);
+    --accent: #2a78d6;
+    --accent-track: #cde2fb;
+    --series-x: #2a78d6;
+    --series-y: #eb6834;
+    --series-z: #1baf7a;
+    --good: #0ca30c;
+    --good-text: #006300;
+    --warning: #fab219;
+    --critical: #d03b3b;
+    --cell-empty: #f0efec;
+    --shadow: 0 1px 2px rgba(11, 11, 11, 0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --text-primary: #f0efec;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --grid: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --wash: rgba(255, 255, 255, 0.04);
+      --band: rgba(57, 135, 229, 0.16);
+      --accent: #3987e5;
+      --accent-track: #2c2c2a;
+      --series-x: #3987e5;
+      --series-y: #d95926;
+      --series-z: #199e70;
+      --good-text: #0ca30c;
+      --cell-empty: #232321;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --wash: rgba(255, 255, 255, 0.04);
+    --band: rgba(57, 135, 229, 0.16);
+    --accent: #3987e5;
+    --accent-track: #2c2c2a;
+    --series-x: #3987e5;
+    --series-y: #d95926;
+    --series-z: #199e70;
+    --good-text: #0ca30c;
+    --cell-empty: #232321;
+    --shadow: none;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 16px; }
+  header h1 { font-size: 20px; font-weight: 600; margin: 0; }
+  header .sub { color: var(--text-secondary); font-size: 13px; }
+  header .spacer { flex: 1; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--border);
+    font-size: 13px; color: var(--text-secondary);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+  .segmented { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); }
+  .segmented button {
+    border: 0; background: transparent; color: var(--text-secondary);
+    font: inherit; font-weight: 500; padding: 6px 14px; border-radius: 7px; cursor: pointer;
+  }
+  .segmented button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+  .banner {
+    display: none; margin-bottom: 16px; padding: 10px 14px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--border); color: var(--text-secondary);
+  }
+  .banner.show { display: flex; gap: 10px; align-items: center; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; }
+  .span-all { grid-column: 1 / -1; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px; box-shadow: var(--shadow); min-width: 0;
+  }
+  .card h2 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+  .card .desc { color: var(--text-secondary); font-size: 13px; margin: 0 0 14px; }
+
+  /* Live prediction */
+  .hero { display: flex; align-items: center; gap: 16px; min-height: 96px; }
+  .hero .glyph { width: 72px; height: 72px; flex: none; color: var(--text-primary); }
+  .hero .name { font-size: 40px; font-weight: 600; line-height: 1.1; }
+  .hero .meta { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+  .hero.empty .name { font-size: 18px; font-weight: 500; color: var(--text-secondary); }
+  .hero.flash { animation: flash 0.6s ease-out; }
+  @keyframes flash { from { background: var(--band); } to { background: transparent; } }
+  .probs { margin-top: 16px; display: grid; gap: 8px; }
+  .prob { display: grid; grid-template-columns: 92px 1fr 44px; align-items: center; gap: 10px; font-size: 13px; }
+  .prob .label { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prob.top .label { color: var(--text-primary); font-weight: 600; }
+  .prob .track { height: 10px; position: relative; }
+  .prob .track::before { content: ""; position: absolute; inset: 4px 0; background: var(--grid); }
+  .prob .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 0 4px 4px 0; transition: width 0.25s; }
+  .prob .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+
+  /* Live chart */
+  .legend { display: flex; gap: 16px; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; flex-wrap: wrap; }
+  .legend .key { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .line { width: 14px; height: 2px; border-radius: 1px; }
+  .legend .band { width: 14px; height: 10px; background: var(--band); border-radius: 2px; }
+  .chart-wrap { position: relative; }
+  canvas#live { width: 100%; height: 280px; display: block; cursor: crosshair; }
+
+  /* Record panel */
+  .gestures { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 8px; }
+  .ggroup { grid-column: 1 / -1; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin: 8px 0 0; }
+  .ggroup:first-child { margin-top: 0; }
+  .gesture {
+    display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 2px 10px; align-items: center; text-align: left;
+    padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: transparent;
+    color: var(--text-primary); font: inherit; cursor: pointer;
+  }
+  .gesture:hover { background: var(--wash); }
+  .gesture[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .gesture svg { width: 28px; height: 28px; grid-row: span 2; }
+  .gesture .gname { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gesture .gcount { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 4px; }
+  .gesture .meter { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--accent-track); overflow: hidden; margin-top: 6px; }
+  .gesture .meter span { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+  .who { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 14px; font-size: 13px; color: var(--text-secondary); }
+  .who label { font-weight: 600; color: var(--text-primary); }
+  .who input {
+    font: inherit; font-size: 14px; padding: 7px 10px; width: 180px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--page); color: var(--text-primary);
+  }
+  .who input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .who input.missing { border-color: var(--critical); }
+  .who .team { margin-left: auto; }
+  .hint { margin: 14px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--wash); color: var(--text-secondary); font-size: 13px; }
+  .hint b { color: var(--text-primary); font-weight: 600; }
+  .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .actions .spacer { flex: 1; }
+  .btn {
+    font: inherit; font-weight: 500; padding: 8px 14px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-primary);
+  }
+  .btn:hover:not(:disabled) { background: var(--wash); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.08); background: var(--accent); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  kbd { font: 12px ui-monospace, Consolas, monospace; padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface); }
+
+  /* History */
+  .history { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); column-gap: 32px; }
+  .history li { display: grid; grid-template-columns: 64px 22px 1fr auto; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid var(--grid); font-size: 13px; }
+
+  .history .t { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .history svg { width: 20px; height: 20px; }
+  .history .c { color: var(--text-secondary); font-variant-numeric: tabular-nums; text-align: right; }
+  .history .truth { font-size: 12px; color: var(--text-muted); }
+  .empty-note { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
+
+  /* Model evaluation */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile { padding: 12px 14px; border-radius: 10px; background: var(--wash); }
+  .tile .tl { font-size: 13px; color: var(--text-secondary); }
+  .tile .tv { font-size: 26px; font-weight: 600; margin-top: 2px; }
+  .tile .ts { font-size: 12px; color: var(--text-muted); }
+  .eval { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  @media (max-width: 900px) { .eval { grid-template-columns: minmax(0, 1fr); } }
+  .eval.wide { grid-template-columns: minmax(0, 1fr); }
+  .cm.dense { font-size: 11px; max-width: 880px; }
+  .cm.dense .cell { aspect-ratio: 1.25; }
+  h3 { font-size: 13px; font-weight: 600; margin: 0 0 10px; color: var(--text-secondary); }
+
+  .cm-scroll { overflow-x: auto; }
+  .cm { display: grid; gap: 2px; font-size: 12px; min-width: 360px; }
+  .cm .hd { color: var(--text-secondary); display: flex; align-items: flex-end; justify-content: center; text-align: center; padding: 4px 2px; line-height: 1.2; }
+  .cm .rh { color: var(--text-secondary); display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; white-space: nowrap; }
+  .cm .cell { aspect-ratio: 1.6; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-variant-numeric: tabular-nums; font-weight: 500; cursor: default; }
+  .cm .cell:hover { outline: 2px solid var(--text-primary); outline-offset: -2px; }
+  .cm .axis { color: var(--text-muted); font-size: 12px; }
+  .cm-note { color: var(--text-muted); font-size: 12px; margin-top: 8px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 6px; text-align: right; border-bottom: 1px solid var(--grid); }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-weight: 500; color: var(--text-secondary); }
+  td { font-variant-numeric: tabular-nums; }
+  td .gcell { display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; }
+  td .gcell svg { width: 18px; height: 18px; }
+  .features { margin-top: 18px; }
+  .features ol { margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 13px; columns: 2; }
+  .features code { font: 12px ui-monospace, Consolas, monospace; color: var(--text-primary); }
+
+  /* Activity */
+  .timeline { min-height: 160px; }
+  .timeline svg { display: block; }
+  .timeline .lane { stroke: var(--grid); stroke-width: 1; }
+  .timeline .lane-label { font-size: 12px; fill: var(--text-secondary); }
+  .timeline .tick { font-size: 11px; fill: var(--text-muted); }
+  .timeline .seg { fill: var(--accent); cursor: default; }
+  .timeline .seg:hover { fill: var(--text-primary); }
+  .spent { display: grid; gap: 8px; }
+  .spent .prob { grid-template-columns: 92px 1fr 64px; }
+  .about p { margin: 0 0 10px; color: var(--text-secondary); font-size: 13px; }
+  .about ul { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: 13px; display: grid; gap: 4px; }
+  .about b { color: var(--text-primary); font-weight: 600; }
+
+  /* Tooltip & toasts */
+  .tooltip {
+    position: fixed; z-index: 20; pointer-events: none; display: none;
+    background: var(--surface); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    font-variant-numeric: tabular-nums; min-width: 120px;
+  }
+  .tooltip .row { display: flex; align-items: center; gap: 6px; }
+  .tooltip .row .v { margin-left: auto; padding-left: 12px; font-weight: 600; }
+  .tooltip .ttl { color: var(--text-secondary); margin-bottom: 4px; }
+  .toasts { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 30; max-width: min(380px, calc(100vw - 32px)); }
+  .toast {
+    display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); font-size: 13px;
+  }
+  .toast svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>micro:bit Machine Learning</h1>
+      <div class="sub">Gesture classifier · Activity tracker · Random Forest on the BBC micro:bit accelerometer</div>
+    </div>
+    <div class="spacer"></div>
+    <span class="pill" id="link"><span class="dot"></span><span>Connecting…</span></span>
+    <div class="segmented" role="group" aria-label="Project">
+      <button id="view-gesture" aria-pressed="true">Gestures</button>
+      <button id="view-activity" aria-pressed="false">Activity</button>
+    </div>
+    <div class="segmented" role="group" aria-label="Gesture mode" data-view="gesture">
+      <button id="mode-predict" aria-pressed="true">Predict</button>
+      <button id="mode-record" aria-pressed="false">Record</button>
+    </div>
+  </header>
+
+  <div class="banner" id="demo-banner">
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.5v4.2M8 11v.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <span><b>Demo mode</b> — gestures and recordings are simulated, not from a micro:bit. Run <kbd>python server.py</kbd> without <kbd>--demo</kbd> for real data.</span>
+  </div>
+
+  <div class="grid">
+    <section class="card" data-view="gesture">
+      <h2>Live prediction</h2>
+      <p class="desc" id="pred-desc">Hold button A on the micro:bit, do a gesture, then release.</p>
+      <div class="hero empty" id="hero"></div>
+      <div class="probs" id="probs"></div>
+    </section>
+
+    <section class="card" data-view="activity">
+      <h2>Current activity</h2>
+      <p class="desc" id="act-desc">Classified from the last 2 seconds of readings, twice a second.</p>
+      <div class="hero empty" id="act-hero"></div>
+      <div class="probs" id="act-probs"></div>
+    </section>
+
+    <section class="card">
+      <h2>Live accelerometer</h2>
+      <p class="desc">Last 6 seconds of readings from the micro:bit, in g (1 g = 1000 mg)</p>
+      <div class="legend">
+        <span class="key"><span class="line" style="background:var(--series-x)"></span>X</span>
+        <span class="key"><span class="line" style="background:var(--series-y)"></span>Y</span>
+        <span class="key"><span class="line" style="background:var(--series-z)"></span>Z</span>
+        <span class="key" data-view="gesture"><span class="band"></span>Button A held (one recording)</span>
+      </div>
+      <div class="chart-wrap"><canvas id="live" aria-label="Live X, Y and Z accelerometer readings"></canvas></div>
+    </section>
+
+    <section class="card span-all" data-view="gesture">
+      <h2>Record training data</h2>
+      <p class="desc">Pick a gesture, then hold A while you do it. Each release saves one recording.</p>
+      <div class="who">
+        <label for="person">Recording as</label>
+        <input id="person" type="text" placeholder="Your first name" maxlength="30" autocomplete="off" spellcheck="false">
+        <span class="team" id="team"></span>
+      </div>
+      <div class="gestures" id="gestures"></div>
+      <p class="hint" id="record-hint"></p>
+      <div class="actions">
+        <button class="btn" id="undo">Undo last recording</button>
+        <button class="btn" id="reset-one">Reset gesture</button>
+        <button class="btn" id="reset-all">Reset all</button>
+        <span class="spacer"></span>
+        <button class="btn primary" id="train">Train model</button>
+      </div>
+    </section>
+
+    <section class="card span-all" data-view="gesture">
+      <h2>Recent predictions</h2>
+      <p class="desc">Newest first</p>
+      <ul class="history" id="history"></ul>
+    </section>
+
+    <section class="card span-all" data-view="gesture">
+      <h2>Model evaluation</h2>
+      <p class="desc" id="eval-desc">Measured on recordings the model did not train on.</p>
+      <div id="eval"></div>
+    </section>
+
+    <section class="card span-all" data-view="activity">
+      <h2>Activity timeline</h2>
+      <p class="desc">Last 5 minutes, one row per activity</p>
+      <div class="timeline" id="timeline"></div>
+    </section>
+
+    <section class="card" data-view="activity">
+      <h2>Time in each activity</h2>
+      <p class="desc">Last 5 minutes</p>
+      <div class="spent" id="spent"></div>
+    </section>
+
+    <section class="card about" data-view="activity">
+      <h2>How the activity tracker works</h2>
+      <p class="desc">Model from the activity tracker project (project root)</p>
+      <p>Every 0.5 s the last <b>2 seconds</b> of readings are resampled to <b>40 samples at 20 Hz</b>, converted to m/s², and turned into 28 statistics (mean, spread, range, RMS and median of X, Y, Z and overall strength). A <b>Random Forest</b> picks the activity; the display shows the most common of the last 3 predictions so it doesn't flicker. The micro:bit LEDs show it too.</p>
+      <ul>
+        <li>The model was trained on the <b>WISDM dataset</b>: phones carried upright in a front trouser pocket by 36 people. Wear the micro:bit the same way for the best results.</li>
+        <li>It knows Walking, Jogging, Upstairs, Downstairs, Standing and Sitting. It was not trained on cycling.</li>
+        <li>The realistic accuracy for someone new is the <b>"new people"</b> figure below, not the test-set figure.</li>
+      </ul>
+    </section>
+
+    <section class="card span-all" data-view="activity">
+      <h2>Activity model evaluation</h2>
+      <p class="desc" id="act-eval-desc"></p>
+      <div id="act-eval"></div>
+    </section>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pct = (v, d = 0) => (v * 100).toFixed(d) + '%';
+
+let state = null;
+
+// ---------- Gesture glyphs ----------
+const GLYPHS = {
+  left:   '<path d="M20 12H5m6-6-6 6 6 6"/>',
+  right:  '<path d="M4 12h15m-6-6 6 6-6 6"/>',
+  up:     '<path d="M12 20V5m-6 6 6-6 6 6"/>',
+  down:   '<path d="M12 4v15m-6-6 6 6 6-6"/>',
+  shake:  '<path d="M3 12l3-5 3 10 3-10 3 10 3-10 3 5"/>',
+  circle: '<path d="M19.5 9A8 8 0 1 0 20 13"/><path d="M20 4v5h-5"/>',
+  unknown:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5v.4M12 17v.5"/>',
+  push:       '<circle cx="12" cy="12" r="8"/><path d="m8.5 8.5 7 7m0-7-7 7"/>',
+  pull:       '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/>',
+  tilt_left:  '<path d="M3 16 21 9"/><path d="M5 5v6m-2.5-2.5L5 11l2.5-2.5"/>',
+  tilt_right: '<path d="M3 9l18 7"/><path d="M19 5v6m-2.5-2.5L19 11l2.5-2.5"/>',
+  tap:        '<path d="M12 5v6m0 0-3-3m3 3 3-3"/><path d="M6 17h12"/><path d="M9 20h6"/>',
+  double_tap: '<path d="M8 4v5m0 0-2.5-2.5M8 9l2.5-2.5M16 4v5m0 0-2.5-2.5M16 9l2.5-2.5"/><path d="M4 15h16"/><path d="M8 19h8"/>',
+  // Activities
+  Walking:    '<circle cx="13" cy="4" r="2"/><path d="M12.5 7.5 11 14l-3 7m3-7 3.5 3 .5 4M8 11l3-3 3.5 3 2.5 1"/>',
+  Jogging:    '<circle cx="15" cy="4" r="2"/><path d="M14 7.5 11 13l-5 2m5-2 3.5 3-1.5 5M8 10l4-2.5 3 3.5 3.5.5"/>',
+  Upstairs:   '<path d="M3 21h5v-5h5v-5h5V6h3"/><path d="M4 11l6-6m0 0H6m4 0v4"/>',
+  Downstairs: '<path d="M21 21h-5v-5h-5v-5H6V6H3"/><path d="M20 11l-6-6m6 6h-4m4 0V7"/>',
+  Standing:   '<circle cx="12" cy="4" r="2"/><path d="M12 7v8m-4-5h8m-4 5-2.5 6m2.5-6 2.5 6"/>',
+  Sitting:    '<circle cx="10" cy="4" r="2"/><path d="M10 7v7h6v7M6 10h7M6 21v-9"/>',
+};
+// Air-written digits d1..d9 are drawn as the number itself
+for (let n = 1; n <= 9; n++) GLYPHS[`d${n}`] = `<text x="12" y="17.5" text-anchor="middle" font-size="16" font-weight="700" fill="currentColor" stroke="none" font-family="system-ui, sans-serif">${n}</text>`;
+const glyph = (id) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${GLYPHS[id] || GLYPHS.unknown}</svg>`;
+const nameOf = (id) => (state?.gestures.find((g) => g.id === id) || {}).name || id;
+const shortOf = (id) => (state?.gestures.find((g) => g.id === id) || {}).short || id;
+
+// Status icons (paired with a label, never colour alone)
+const ICON = {
+  good: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="var(--good)"/><path d="m5 8.2 2 2 4-4.2" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  warn: '<svg viewBox="0 0 16 16"><path d="M8 1.5 15 14H1z" fill="var(--warning)"/><path d="M8 6v3.5M8 11.5v.3" stroke="#0b0b0b" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  error: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="var(--critical)"/><path d="m5.5 5.5 5 5m0-5-5 5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  info: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="var(--accent)"/><path d="M8 7v4.5M8 4.6v.3" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>',
+};
+
+// ---------- Server communication ----------
+async function post(path, body = {}) {
+  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    toast('warn', data.error || `Request failed (${res.status})`);
+  }
+}
+
+function connect() {
+  const es = new EventSource('/events');
+  es.onopen = async () => {
+    state = await (await fetch('/api/state')).json();
+    renderAll();
+  };
+  es.onerror = () => renderLink({ connected: false, port: null, error: 'Lost connection to server.py - is it still running?' });
+  es.addEventListener('sample', (e) => pushSample(JSON.parse(e.data)));
+  es.addEventListener('prediction', (e) => {
+    const p = JSON.parse(e.data);
+    state.history.unshift(p);
+    state.history.length = Math.min(state.history.length, 12);
+    renderPrediction(p, true);
+    renderHistory();
+  });
+  es.addEventListener('saved', (e) => {
+    const d = JSON.parse(e.data);
+    state.counts = d.counts;
+    state.team = d.team;
+    state.can_undo = d.can_undo;
+    renderRecord();
+    toast('good', `Saved ${nameOf(d.label)} recording #${d.counts[d.label]} (${d.n_samples} samples)`);
+  });
+  es.addEventListener('state', (e) => { state = JSON.parse(e.data); renderAll(); });
+  es.addEventListener('link', (e) => { if (state) { state.link = JSON.parse(e.data); renderLink(state.link); } });
+  es.addEventListener('training', () => { if (state) { state.training = true; renderRecord(); } });
+  es.addEventListener('notice', (e) => { const n = JSON.parse(e.data); toast(n.level, n.text); });
+  es.addEventListener('activity', (e) => {
+    if (!state) return;
+    const d = JSON.parse(e.data);
+    const a = state.activity;
+    a.latest = d;
+    a.history.push({ t: d.t, activity: d.activity, stable: d.stable, confidence: d.confidence });
+    while (a.history.length && a.history[0].t < d.t - 600) a.history.shift();
+    if (state.view === 'activity') renderActivityLive();
+  });
+}
+
+// ---------- Rendering ----------
+function renderAll() {
+  if (!state) return;
+  $('#demo-banner').classList.toggle('show', state.demo);
+  document.querySelectorAll('[data-view]').forEach((el) => { el.hidden = el.dataset.view !== state.view; });
+  $('#view-gesture').setAttribute('aria-pressed', state.view === 'gesture');
+  $('#view-activity').setAttribute('aria-pressed', state.view === 'activity');
+  $('#mode-predict').setAttribute('aria-pressed', state.mode === 'predict');
+  $('#mode-record').setAttribute('aria-pressed', state.mode === 'record');
+  renderLink(state.link);
+  renderPrediction(state.history[0], false);
+  renderRecord();
+  renderHistory();
+  renderEval();
+  renderActivityLive();
+  renderActivityEval();
+}
+
+function renderLink(link) {
+  const el = $('#link');
+  let color, text;
+  if (link.connected) {
+    color = 'var(--good)';
+    text = link.port === 'DEMO' ? 'Demo micro:bit (simulated)' : `micro:bit on ${link.port}`;
+  } else {
+    color = 'var(--critical)';
+    text = link.error || 'micro:bit not connected';
+  }
+  el.innerHTML = `<span class="dot" style="background:${color}"></span><span>${esc(text)}</span>`;
+}
+
+function renderPrediction(p, fresh) {
+  const hero = $('#hero');
+  const probs = $('#probs');
+  if (state.mode === 'record') {
+    $('#pred-desc').textContent = 'Paused while recording training data. Switch to Predict to classify gestures.';
+  } else if (!state.has_model) {
+    $('#pred-desc').textContent = 'No trained model yet.';
+  } else {
+    $('#pred-desc').textContent = 'Hold button A on the micro:bit, do a gesture, then release.';
+  }
+
+  if (!state.has_model) {
+    hero.className = 'hero empty';
+    hero.innerHTML = `<div class="glyph" style="color:var(--text-muted)">${glyph('unknown')}</div><div><div class="name">Train a model first</div><div class="meta">Switch to Record, capture about ${state.target} of each gesture, then press Train model.</div></div>`;
+    probs.innerHTML = '';
+    return;
+  }
+  if (!p) {
+    hero.className = 'hero empty';
+    hero.innerHTML = `<div class="glyph" style="color:var(--text-muted)">${glyph('unknown')}</div><div><div class="name">Waiting for a gesture…</div><div class="meta">Predictions appear here when you release button A.</div></div>`;
+    probs.innerHTML = '';
+    return;
+  }
+
+  const id = p.confident ? p.gesture : 'unknown';
+  const title = p.confident ? p.name : 'Not sure';
+  const meta = p.confident
+    ? `${pct(p.confidence)} confident · ${p.duration_s}s gesture · ${p.time}`
+    : `Best guess ${esc(p.name)} at ${pct(p.confidence)} — below the 50% threshold · ${p.time}`;
+  const truth = p.truth ? ` · simulated ${esc(nameOf(p.truth))} ${p.truth === p.gesture ? '✓' : '✗'}` : '';
+  hero.className = 'hero';
+  hero.innerHTML = `<div class="glyph">${glyph(id)}</div><div><div class="name">${esc(title)}</div><div class="meta">${meta}${truth}</div></div>`;
+  if (fresh) { void hero.offsetWidth; hero.classList.add('flash'); }
+
+  const order = Object.keys(p.probs).sort((x, y) => p.probs[y] - p.probs[x]).slice(0, 5);
+  probs.innerHTML = order.map((g) => {
+    const v = p.probs[g];
+    return `<div class="prob ${g === p.gesture ? 'top' : ''}"><span class="label">${esc(nameOf(g))}</span><span class="track"><span class="fill" style="width:${(v * 100).toFixed(1)}%"></span></span><span class="val">${pct(v)}</span></div>`;
+  }).join('');
+}
+
+function renderRecord() {
+  const wrap = $('#gestures');
+  wrap.innerHTML = state.gestures.map((g, i) => {
+    const n = state.counts[g.id] || 0;
+    const done = n >= state.target;
+    const selected = state.mode === 'record' && state.label === g.id;
+    const heading = i === 0 || state.gestures[i - 1].group !== g.group ? `<div class="ggroup">${esc(g.group)}</div>` : '';
+    return `${heading}<button class="gesture" data-id="${g.id}" aria-pressed="${selected}">
+      ${glyph(g.id)}<span class="gname">${esc(g.name)}</span>
+      <span class="gcount">${done ? ICON.good.replace('<svg', '<svg width="12" height="12"') : ''}${n} / ${state.target}${done ? ' done' : ''}</span>
+      <span class="meter"><span style="width:${Math.min(100, (n / state.target) * 100)}%"></span></span>
+    </button>`;
+  }).join('');
+  wrap.querySelectorAll('.gesture').forEach((b) => b.addEventListener('click', () => selectGesture(b.dataset.id)));
+
+  const total = Object.values(state.counts).reduce((a, b) => a + b, 0);
+  const input = $('#person');
+  if (document.activeElement !== input) input.value = state.person;
+  input.classList.toggle('missing', !state.person);
+  const team = Object.entries(state.team);
+  $('#team').textContent = team.length ? 'Team: ' + team.map(([p, n]) => `${p} ${n}`).join(' · ') : '';
+  $('#record-hint').innerHTML = !state.person
+    ? 'Type your name in <b>Recording as</b> first. Each person\'s recordings are kept in their own folder so the model can be tested on people it hasn\'t seen.'
+    : state.mode === 'record'
+    ? `Recording <b>${esc(nameOf(state.label))}</b>: hold A on the micro:bit, do the gesture, release. Keys <kbd>[</kbd> and <kbd>]</kbd> switch to the previous / next gesture.`
+    : `Click a gesture to start recording it. ${total} recordings saved by ${esc(state.person)} so far.`;
+  $('#undo').disabled = !state.can_undo;
+  $('#reset-one').textContent = `Reset ${nameOf(state.label)}`;
+  $('#reset-one').disabled = !state.counts[state.label];
+  $('#reset-all').disabled = total === 0;
+  const trainBtn = $('#train');
+  trainBtn.disabled = state.training;
+  trainBtn.textContent = state.training ? 'Training…' : 'Train model';
+}
+
+function renderHistory() {
+  const list = $('#history');
+  if (!state.history.length) {
+    list.innerHTML = '<li class="empty-note" style="display:block">No predictions yet.</li>';
+    return;
+  }
+  list.innerHTML = state.history.slice(0, 8).map((p) => {
+    const id = p.confident ? p.gesture : 'unknown';
+    const truth = p.truth ? `<div class="truth">simulated ${esc(nameOf(p.truth))} ${p.truth === p.gesture ? '✓' : '✗'}</div>` : '';
+    return `<li><span class="t">${p.time}</span>${glyph(id)}<span>${p.confident ? esc(p.name) : `Not sure (${esc(p.name)}?)`}${truth}</span><span class="c">${pct(p.confidence)}</span></li>`;
+  }).join('');
+}
+
+// Sequential blue ramp: low values recede toward the surface in both modes
+const RAMP_LIGHT = ['#cde2fb', '#b7d3f6', '#9ec5f4', '#86b6ef', '#6da7ec', '#5598e7', '#3987e5', '#2a78d6', '#256abf', '#1c5cab', '#184f95', '#104281', '#0d366b'];
+const RAMP_DARK = ['#0d366b', '#104281', '#184f95', '#1c5cab', '#256abf', '#2a78d6', '#3987e5', '#5598e7', '#6da7ec', '#86b6ef', '#9ec5f4', '#b7d3f6', '#cde2fb'];
+function isDark() {
+  const t = document.documentElement.dataset.theme;
+  return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+}
+function cellStyle(v) {
+  if (v <= 0) return { bg: 'var(--cell-empty)', fg: 'var(--text-muted)' };
+  const ramp = isDark() ? RAMP_DARK : RAMP_LIGHT;
+  const i = Math.min(ramp.length - 1, Math.max(0, Math.round(v * (ramp.length - 1))));
+  const fg = isDark() ? (i >= 8 ? '#0b0b0b' : '#ffffff') : (i >= 6 ? '#ffffff' : '#0b0b0b');
+  return { bg: ramp[i], fg };
+}
+
+// Tiles, confusion matrix and per-class table, shared by both models
+function renderMetrics(el, o) {
+  const tiles = `<div class="tiles">${o.tiles.map((t) => `<div class="tile"><div class="tl">${t.label}</div><div class="tv">${t.value}</div><div class="ts">${t.sub}</div></div>`).join('')}</div>`;
+
+  const dense = o.classes.length > 10;
+  const cols = `${dense ? 96 : 120}px repeat(${o.classes.length}, minmax(${dense ? 34 : 44}px, 1fr))`;
+  let cm = `<div class="cm${dense ? ' dense' : ''}" style="grid-template-columns:${cols};min-width:${dense ? 96 + o.classes.length * 36 : 360}px"><div class="axis" style="display:flex;align-items:flex-end;justify-content:flex-end;text-align:right;padding:4px 8px 4px 0">Predicted →<br>Actual ↓</div>`;
+  cm += o.classes.map((g) => `<div class="hd" title="${esc(o.nameOf(g))}">${esc((o.shortOf || o.nameOf)(g))}</div>`).join('');
+  o.classes.forEach((actual, r) => {
+    const row = o.cm[r];
+    const rowTotal = row.reduce((x, y) => x + y, 0) || 1;
+    cm += `<div class="rh">${esc(o.nameOf(actual))}</div>`;
+    row.forEach((n, c) => {
+      const st = cellStyle(n / rowTotal);
+      cm += `<div class="cell" style="background:${st.bg};color:${st.fg}" data-a="${actual}" data-p="${o.classes[c]}" data-n="${n}" data-share="${n / rowTotal}">${n.toLocaleString()}</div>`;
+    });
+  });
+  cm += '</div>';
+
+  const rows = o.classes.map((g) => {
+    const st = o.perClass[g];
+    return `<tr><td><span class="gcell">${glyph(g)}${esc(o.nameOf(g))}</span></td><td>${pct(st.precision)}</td><td>${pct(st.recall)}</td><td>${st.f1.toFixed(2)}</td><td>${st.support.toLocaleString()}</td></tr>`;
+  }).join('');
+  const unitTitle = o.unit[0].toUpperCase() + o.unit.slice(1);
+
+  el.innerHTML = `${tiles}<div class="eval${dense ? ' wide' : ''}">
+    <div><h3>Confusion matrix (test set)</h3><div class="cm-scroll">${cm}</div><div class="cm-note">Shade = share of each actual ${o.unit}'s ${o.items}. Off-diagonal cells are mistakes.</div></div>
+    <div><h3>Per-${o.unit} results (test set)</h3>
+      <table><thead><tr><th>${unitTitle}</th><th>Precision</th><th>Recall</th><th>F1</th><th>Test n</th></tr></thead><tbody>${rows}</tbody></table>
+      ${o.extra || ''}
+    </div></div>`;
+
+  el.querySelectorAll('.cell').forEach((cell) => {
+    cell.addEventListener('mousemove', (e) => {
+      const { a, p, n, share } = cell.dataset;
+      const what = a === p ? 'correct' : `predicted as ${esc(o.nameOf(p))}`;
+      showTooltip(e, `<div class="ttl">Actual ${esc(o.nameOf(a))}</div><div class="row">${what}<span class="v">${(+n).toLocaleString()} (${pct(+share)})</span></div>`);
+    });
+    cell.addEventListener('mouseleave', hideTooltip);
+  });
+}
+
+const macroF1 = (classes, perClass) => classes.reduce((x, g) => x + perClass[g].f1, 0) / classes.length;
+
+function renderEval() {
+  const el = $('#eval');
+  const m = state.metrics;
+  if (!m) {
+    $('#eval-desc').textContent = 'Results appear here after you train a model.';
+    el.innerHTML = `<p class="empty-note">No model trained yet. Record at least 5 of each gesture (about ${state.target} is better), then press <b>Train model</b>.</p>`;
+    return;
+  }
+  $('#eval-desc').textContent = `Measured on ${m.n_test} recordings held out from training (80/20 split), plus ${m.cv_folds}-fold cross-validation over all ${m.n_train + m.n_test}.`;
+  const minCount = Math.min(...m.classes.map((g) => m.counts[g]));
+  renderMetrics(el, {
+    classes: m.classes, cm: m.confusion_matrix, perClass: m.per_class, nameOf, shortOf, unit: 'gesture', items: 'recordings',
+    tiles: [
+      { label: 'Test accuracy', value: pct(m.accuracy, 1), sub: `${m.n_test} held-out recordings` },
+      { label: 'Cross-validation accuracy', value: pct(m.cv_mean, 1), sub: `± ${pct(m.cv_std, 1)} across ${m.cv_folds} folds` },
+      { label: 'Accuracy on a new person', value: m.cross_person_mean == null ? '—' : pct(m.cross_person_mean, 1), sub: m.cross_person_mean == null ? 'Needs recordings from 2+ people' : 'Trained without that person, tested on them' },
+      { label: 'Macro F1', value: macroF1(m.classes, m.per_class).toFixed(2), sub: `Average over ${m.classes.length} gestures` },
+      { label: 'Recordings used', value: m.n_train + m.n_test, sub: `${Object.keys(m.people || {}).length || 1} ${Object.keys(m.people || {}).length === 1 ? 'person' : 'people'} · fewest per gesture: ${minCount} · trained ${esc(m.trained_at)}` },
+    ],
+    extra: `${peopleTable(m)}<div class="features"><h3>Most important features</h3><ol>${m.top_features.slice(0, 6).map((f) => `<li><code>${esc(f.name)}</code> ${pct(f.importance, 1)}</li>`).join('')}</ol></div>`,
+  });
+}
+
+function peopleTable(m) {
+  const people = Object.entries(m.people || {});
+  if (!people.length) return '';
+  const rows = people.map(([p, n]) => {
+    const r = (m.cross_person || {})[p];
+    return `<tr><td>${esc(p)}</td><td>${n}</td><td>${r ? pct(r.accuracy, 1) : '—'}</td><td>${r ? r.n_test : '—'}</td></tr>`;
+  }).join('');
+  return `<div class="features"><h3>By person</h3>
+    <table><thead><tr><th>Person</th><th>Recordings</th><th>Accuracy when left out</th><th>Tested on</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="cm-note">"Accuracy when left out": the model is trained on everyone else and tested on this person's recordings, so it shows how well it recognises someone new.</div></div>`;
+}
+
+// ---------- Activity view ----------
+const TIMELINE_S = 300;
+const fmtDuration = (secs) => { const m = Math.floor(secs / 60), sec = Math.round(secs % 60); return m ? `${m}m ${String(sec).padStart(2, '0')}s` : `${sec}s`; };
+const clock = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+function renderActivityLive() {
+  if (!state || state.view !== 'activity') return;
+  const a = state.activity;
+  const hero = $('#act-hero');
+  const probs = $('#act-probs');
+  if (!a.available) {
+    hero.className = 'hero empty';
+    hero.innerHTML = `<div class="glyph" style="color:var(--text-muted)">${glyph('unknown')}</div><div><div class="name">Activity model missing</div><div class="meta">${esc(a.error || '')}</div></div>`;
+    probs.innerHTML = '';
+  } else {
+    const last = a.latest || a.history[a.history.length - 1];
+    if (!last || Date.now() / 1000 - last.t > 3) {
+      hero.className = 'hero empty';
+      hero.innerHTML = `<div class="glyph" style="color:var(--text-muted)">${glyph('unknown')}</div><div><div class="name">Waiting for readings…</div><div class="meta">Needs 2 seconds of continuous data from the micro:bit.</div></div>`;
+      probs.innerHTML = '';
+    } else {
+      hero.className = 'hero';
+      hero.innerHTML = `<div class="glyph">${glyph(last.stable)}</div><div><div class="name">${esc(last.stable)}</div><div class="meta">Latest window: ${esc(last.activity)} at ${pct(last.confidence)} confidence · ${clock(last.t)}</div></div>`;
+      probs.innerHTML = a.latest ? a.activities.map((act) => {
+        const v = a.latest.probs[act] || 0;
+        return `<div class="prob ${act === a.latest.activity ? 'top' : ''}"><span class="label">${esc(act)}</span><span class="track"><span class="fill" style="width:${(v * 100).toFixed(1)}%"></span></span><span class="val">${pct(v)}</span></div>`;
+      }).join('') : '';
+    }
+  }
+  renderTimeline();
+  renderSpent();
+}
+
+function recentHistory() {
+  const now = Date.now() / 1000;
+  return state.activity.history.filter((e) => e.t >= now - TIMELINE_S);
+}
+
+function renderTimeline() {
+  const a = state.activity;
+  const el = $('#timeline');
+  const acts = a.activities;
+  const now = Date.now() / 1000;
+  const W = el.clientWidth || 800, labelW = 92, padR = 8, laneH = 24, axisH = 20;
+  const H = acts.length * laneH + axisH;
+  const plotW = W - labelW - padR;
+  const xAt = (t) => labelW + (1 - (now - t) / TIMELINE_S) * plotW;
+
+  // Merge consecutive predictions of the same activity into segments
+  const segs = [];
+  for (const e of recentHistory()) {
+    const last = segs[segs.length - 1];
+    if (last && last.activity === e.stable && e.t - last.end <= a.step_s * 3) {
+      last.end = e.t;
+      last.conf.push(e.confidence);
+    } else {
+      segs.push({ activity: e.stable, start: e.t - a.step_s, end: e.t, conf: [e.confidence] });
+    }
+  }
+
+  let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Activity timeline">`;
+  acts.forEach((act, i) => {
+    const y = i * laneH;
+    svg += `<line class="lane" x1="${labelW}" x2="${W - padR}" y1="${y + laneH - 0.5}" y2="${y + laneH - 0.5}"/>`;
+    svg += `<text class="lane-label" x="${labelW - 10}" y="${y + laneH / 2}" text-anchor="end" dominant-baseline="middle">${esc(act)}</text>`;
+  });
+  for (let m = 0; m <= 5; m++) {
+    const x = labelW + plotW * (1 - m / 5);
+    const anchor = m === 0 ? 'end' : m === 5 ? 'start' : 'middle';
+    svg += `<text class="tick" x="${x}" y="${H - 4}" text-anchor="${anchor}">${m === 0 ? 'now' : `−${m} min`}</text>`;
+  }
+  segs.forEach((sg, k) => {
+    const i = acts.indexOf(sg.activity);
+    const x0 = Math.max(labelW, xAt(sg.start)), x1 = Math.min(W - padR, xAt(sg.end));
+    if (i < 0 || x1 <= labelW) return;
+    svg += `<rect class="seg" data-k="${k}" x="${x0.toFixed(1)}" y="${i * laneH + 6}" width="${Math.max(3, x1 - x0).toFixed(1)}" height="${laneH - 12}" rx="2"/>`;
+  });
+  svg += '</svg>';
+  el.innerHTML = segs.length ? svg : svg + '<p class="empty-note">No activity yet. Predictions appear here while the micro:bit streams readings.</p>';
+  el._segs = segs;
+}
+
+$('#timeline').addEventListener('mousemove', (e) => {
+  const k = e.target.dataset && e.target.dataset.k;
+  if (k === undefined) { hideTooltip(); return; }
+  const sg = $('#timeline')._segs[+k];
+  const avg = sg.conf.reduce((x, y) => x + y, 0) / sg.conf.length;
+  showTooltip(e, `<div class="ttl">${esc(sg.activity)}</div><div class="row">${clock(sg.start)} – ${clock(sg.end)}<span class="v">${fmtDuration(sg.end - sg.start)}</span></div><div class="row">Average confidence<span class="v">${pct(avg)}</span></div>`);
+});
+$('#timeline').addEventListener('mouseleave', hideTooltip);
+
+function renderSpent() {
+  const a = state.activity;
+  const secs = Object.fromEntries(a.activities.map((act) => [act, 0]));
+  for (const e of recentHistory()) if (e.stable in secs) secs[e.stable] += a.step_s;
+  const max = Math.max(...Object.values(secs), 1);
+  $('#spent').innerHTML = a.activities.map((act) => `<div class="prob"><span class="label">${esc(act)}</span><span class="track"><span class="fill" style="width:${(secs[act] / max * 100).toFixed(1)}%"></span></span><span class="val">${fmtDuration(secs[act])}</span></div>`).join('');
+}
+
+function renderActivityEval() {
+  const a = state.activity;
+  const el = $('#act-eval');
+  const m = a.eval;
+  if (!a.available) {
+    $('#act-eval-desc').textContent = '';
+    el.innerHTML = `<p class="empty-note">${esc(a.error || '')}</p>`;
+    return;
+  }
+  if (!m) {
+    $('#act-eval-desc').textContent = '';
+    el.innerHTML = `<p class="empty-note">${a.eval_error ? 'Evaluation failed: ' + esc(a.eval_error) : 'Evaluating the activity model… (about 15 seconds the first time)'}</p>`;
+    return;
+  }
+  $('#act-eval-desc').textContent = `Test set: ${m.n_test.toLocaleString()} two-second windows from a random 80/20 split of the WISDM data. Those windows overlap with training windows from the same people, which flatters the score, so the model was also retrained with ${m.n_test_users} of the ${m.n_users} people held out entirely.`;
+  renderMetrics(el, {
+    classes: m.classes, cm: m.confusion_matrix, perClass: m.per_class, nameOf: (x) => x, unit: 'activity', items: 'windows',
+    tiles: [
+      { label: 'Test accuracy', value: pct(m.accuracy, 1), sub: `${m.n_test.toLocaleString()} windows, random split` },
+      { label: 'Accuracy on new people', value: pct(m.user_accuracy, 1), sub: `${m.n_test_users} of ${m.n_users} people never seen in training` },
+      { label: 'Macro F1', value: macroF1(m.classes, m.per_class).toFixed(2), sub: `Average over ${m.classes.length} activities` },
+      { label: 'Training windows', value: m.n_train.toLocaleString(), sub: `Evaluated ${esc(m.evaluated_at)}` },
+    ],
+  });
+}
+
+// ---------- Tooltip & toasts ----------
+const tip = $('#tooltip');
+function showTooltip(e, html) {
+  tip.innerHTML = html;
+  tip.style.display = 'block';
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+  tip.style.left = x + 'px';
+  tip.style.top = y + 'px';
+}
+function hideTooltip() { tip.style.display = 'none'; }
+
+function toast(level, text) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `${ICON[level] || ICON.info}<span>${esc(text)}</span>`;
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), level === 'error' ? 8000 : 3500);
+}
+
+// ---------- Live accelerometer chart ----------
+const WINDOW_MS = 6000; // the chart shows the last 6 s
+const buf = { t: [], x: [], y: [], z: [], rec: [] };
+const canvas = $('#live');
+const ctx = canvas.getContext('2d');
+let hoverX = null, hoverEvent = null;
+
+// Samples are placed by arrival time, so the chart is right at any sampling rate
+function pushSample(s) {
+  buf.t.push(s.t ?? performance.now());
+  for (const k of ['x', 'y', 'z', 'rec']) buf[k].push(s[k]);
+  const cutoff = buf.t[buf.t.length - 1] - WINDOW_MS - 1000;
+  while (buf.t.length && buf.t[0] < cutoff) for (const k in buf) buf[k].shift();
+}
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const r = canvas.getBoundingClientRect();
+  canvas.width = Math.round(r.width * dpr);
+  canvas.height = Math.round(r.height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+new ResizeObserver(resizeCanvas).observe(canvas);
+
+const LIMIT = 2048; // micro:bit accelerometer range is ±2 g
+const GAP_MS = 500; // break the line where the stream paused
+function geometry(now) {
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  const pad = { l: 34, r: 8, t: 8, b: 20 };
+  const plotW = W - pad.l - pad.r;
+  return {
+    W, H, pad, plotW,
+    xAt: (t) => pad.l + (1 - (now - t) / WINDOW_MS) * plotW,
+    tAt: (px) => now - (1 - (px - pad.l) / plotW) * WINDOW_MS,
+    yAt: (v) => pad.t + (1 - (Math.max(-LIMIT, Math.min(LIMIT, v)) + LIMIT) / (2 * LIMIT)) * (H - pad.t - pad.b),
+  };
+}
+
+function nearestIndex(t) {
+  let best = -1, dist = Infinity;
+  for (let i = 0; i < buf.t.length; i++) {
+    const d = Math.abs(buf.t[i] - t);
+    if (d < dist) { dist = d; best = i; }
+  }
+  return dist < GAP_MS / 2 ? best : -1;
+}
+
+function draw() {
+  requestAnimationFrame(draw);
+  const now = buf.t.length && buf.t[buf.t.length - 1] > performance.now() ? buf.t[buf.t.length - 1] : performance.now();
+  const css = getComputedStyle(document.documentElement);
+  const col = (v) => css.getPropertyValue(v).trim();
+  const g = geometry(now);
+  ctx.clearRect(0, 0, g.W, g.H);
+
+  // Grid & y ticks
+  ctx.font = '11px system-ui, -apple-system, "Segoe UI", sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'right';
+  for (const v of [-2000, -1000, 0, 1000, 2000]) {
+    const y = Math.round(g.yAt(v)) + 0.5;
+    ctx.strokeStyle = v === 0 ? col('--baseline') : col('--grid');
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(g.pad.l, y); ctx.lineTo(g.W - g.pad.r, y); ctx.stroke();
+    ctx.fillStyle = col('--text-muted');
+    ctx.fillText(`${v / 1000}g`.replace('-', '−'), g.pad.l - 6, y);
+  }
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  ctx.fillText('−6 s', g.pad.l, g.H - 4);
+  ctx.textAlign = 'right';
+  ctx.fillText('now', g.W - g.pad.r, g.H - 4);
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(g.pad.l, 0, g.plotW, g.H); ctx.clip();
+
+  // Recording bands
+  ctx.fillStyle = col('--band');
+  let start = null;
+  for (let i = 0; i <= buf.t.length; i++) {
+    const on = i < buf.t.length && buf.rec[i];
+    if (on && start === null) start = i;
+    if (!on && start !== null) {
+      const x0 = g.xAt(buf.t[start]);
+      ctx.fillRect(x0, g.pad.t, Math.max(1, g.xAt(buf.t[i - 1]) - x0), g.H - g.pad.t - g.pad.b);
+      start = null;
+    }
+  }
+
+  // Lines
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  for (const [k, v] of [['x', '--series-x'], ['y', '--series-y'], ['z', '--series-z']]) {
+    ctx.strokeStyle = col(v);
+    ctx.beginPath();
+    for (let i = 0; i < buf.t.length; i++) {
+      const x = g.xAt(buf.t[i]), y = g.yAt(buf[k][i]);
+      if (i > 0 && buf.t[i] - buf.t[i - 1] < GAP_MS) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Crosshair + tooltip
+  if (hoverX !== null) {
+    const i = nearestIndex(g.tAt(hoverX));
+    const x = Math.round(i >= 0 ? g.xAt(buf.t[i]) : hoverX) + 0.5;
+    ctx.strokeStyle = col('--text-muted');
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, g.pad.t); ctx.lineTo(x, g.H - g.pad.b); ctx.stroke();
+    if (i >= 0) {
+      for (const [k, v] of [['x', '--series-x'], ['y', '--series-y'], ['z', '--series-z']]) {
+        ctx.beginPath(); ctx.arc(x, g.yAt(buf[k][i]), 4, 0, Math.PI * 2);
+        ctx.fillStyle = col(v); ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = col('--surface'); ctx.stroke();
+      }
+      const secs = ((now - buf.t[i]) / 1000).toFixed(2);
+      const row = (k, v) => `<div class="row"><span class="dot" style="background:var(${v})"></span>${k.toUpperCase()}<span class="v">${(buf[k][i] / 1000).toFixed(2)} g</span></div>`;
+      showTooltip(hoverEvent, `<div class="ttl">${secs} s ago${buf.rec[i] ? ' · recording' : ''}</div>${row('x', '--series-x')}${row('y', '--series-y')}${row('z', '--series-z')}`);
+    } else {
+      hideTooltip();
+    }
+  }
+}
+requestAnimationFrame(draw);
+
+canvas.addEventListener('mousemove', (e) => {
+  hoverX = e.clientX - canvas.getBoundingClientRect().left;
+  hoverEvent = e;
+});
+canvas.addEventListener('mouseleave', () => { hoverX = null; hideTooltip(); });
+
+// ---------- Controls ----------
+function selectGesture(id) {
+  post('/api/label', { label: id });
+  if (state.mode !== 'record') post('/api/mode', { mode: 'record' });
+}
+$('#view-gesture').addEventListener('click', () => post('/api/view', { view: 'gesture' }));
+$('#view-activity').addEventListener('click', () => post('/api/view', { view: 'activity' }));
+$('#mode-predict').addEventListener('click', () => post('/api/mode', { mode: 'predict' }));
+$('#mode-record').addEventListener('click', () => post('/api/mode', { mode: 'record' }));
+$('#undo').addEventListener('click', () => post('/api/undo'));
+$('#person').addEventListener('change', (e) => post('/api/person', { person: e.target.value }));
+$('#person').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
+$('#reset-one').addEventListener('click', () => {
+  const n = state.counts[state.label] || 0;
+  if (n && confirm(`Delete all ${n} ${nameOf(state.label)} recordings?
+
+They are moved to gesture/data/raw_deleted, not erased.`)) post('/api/reset', { label: state.label });
+});
+$('#reset-all').addEventListener('click', () => {
+  const n = Object.values(state.counts).reduce((x, y) => x + y, 0);
+  if (n && confirm(`Delete all ${n} recordings of every gesture?
+
+They are moved to gesture/data/raw_deleted, not erased. The trained model is kept until you train again.`)) post('/api/reset', { label: 'all' });
+});
+$('#train').addEventListener('click', () => post('/api/train'));
+document.addEventListener('keydown', (e) => {
+  if (!state || state.view !== 'gesture' || e.ctrlKey || e.metaKey || e.altKey || e.target.matches('input, textarea')) return;
+  if (e.key !== '[' && e.key !== ']') return;
+  const ids = state.gestures.map((g) => g.id);
+  const i = ids.indexOf(state.label) + (e.key === ']' ? 1 : -1);
+  selectGesture(ids[(i + ids.length) % ids.length]);
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (state) { renderEval(); renderActivityEval(); } });
+// Keep the timeline scrolling even when no new predictions arrive
+setInterval(() => { if (state && state.view === 'activity') renderActivityLive(); }, 1000);
+
+connect();
+</script>
+</body>
+</html>

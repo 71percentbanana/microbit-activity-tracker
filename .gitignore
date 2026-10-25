@@ -20,3 +20,12 @@ ehthumbs.db
 [Dd]esktop.ini
 $RECYCLE.BIN/
 .DS_Store
+
+# Gesture classifier demo mode (simulated data, regenerated automatically)
+gesture/data/demo/
+gesture/models/demo/
+dashboard/activity_eval.json
+gesture/data/*_deleted/
+dashboard/settings.json
+gesture/data/sim/
+gesture/models/

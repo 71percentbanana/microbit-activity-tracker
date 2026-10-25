@@ -1,5 +1,10 @@
 # BBC micro:bit Human Activity Recognition (HAR) using Random Forest
 
+> This repository holds two separate micro:bit machine-learning projects that share one live dashboard:
+> - **Activity tracker** (this folder) — recognises walking, jogging, stairs, sitting and standing.
+> - **Gesture classifier** ([`gesture/`](gesture)) — recognises hand gestures trained on your own recordings.
+> - **Dashboard** ([`dashboard/`](dashboard)) — `python dashboard/server.py` opens a web page with a **Gestures** and an **Activity** view.
+
 This project trains a **Random Forest Classifier** on the **WISDM Accelerometer Dataset** and provides real-time activity recognition from the 3-axis $(X, Y, Z)$ accelerometer of a **BBC micro:bit**.
 
 ---
@@ -81,3 +86,13 @@ To test without hardware plugged in:
 ```bash
 python realtime_predict.py --simulate
 ```
+
+---
+
+## 📊 Live Dashboard (Activity + Gestures)
+
+Flash [`gesture/microbit/gesture_classifier.hex`](gesture/microbit/gesture_classifier.hex) (drag it onto the **MICROBIT** drive), close any MakeCode tabs, then run:
+```bash
+python dashboard/server.py
+```
+The dashboard opens at http://localhost:8000. In the **Activity** view, the last 2 seconds of the micro:bit's readings are classified with this folder's Random Forest twice a second. The view shows the current activity, a 5-minute timeline, time spent in each activity, and the model's evaluation, including accuracy on people the model never saw. The micro:bit LEDs show the activity as well. Wear the micro:bit upright in a front trouser pocket, as the WISDM phones were.

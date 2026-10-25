@@ -32,8 +32,8 @@ def find_microbit_port():
     for p in ports:
         desc = (p.description or "").lower()
         mfg = (p.manufacturer or "").lower()
-        # Micro:bit devices typically show up with mbed or micro:bit in description/manufacturer
-        if "micro:bit" in desc or "mbed" in desc or "micro:bit" in mfg:
+        # micro:bit uses USB vendor ID 0x0D28 (Arm DAPLink); older drivers also name it mbed/micro:bit
+        if p.vid == 0x0D28 or "micro:bit" in desc or "mbed" in desc or "micro:bit" in mfg:
             return p.device
     return None
 
@@ -109,7 +109,10 @@ def run_serial_stream(port, baudrate, rf, label_encoder, window_size=40, step_ev
             # Clean line and handle potential MakeCode formats (e.g., '100,200,300' or 'x:100, y:200, z:300')
             cleaned = line.replace('x:', '').replace('y:', '').replace('z:', '').replace(' ', '')
             parts = cleaned.split(',')
-            if len(parts) != 3:
+            if len(parts) == 8:
+                # Recording program format: 'sampleCount,x,y,z,strength,activityLevel,averageActivity,peakActivity'
+                parts = parts[1:4]
+            elif len(parts) != 3:
                 continue
 
             try:
