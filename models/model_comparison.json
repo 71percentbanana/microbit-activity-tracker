@@ -170,74 +170,74 @@
     {
       "trees": 150,
       "max_depth": 12,
-      "nodes": 18194,
-      "kb": 124.666015625,
-      "fits": true,
-      "cv_accuracy": 0.9836309523809523
+      "nodes": 20030,
+      "kb": 137.216796875,
+      "fits": false,
+      "cv_accuracy": 0.9866071428571429
     },
     {
       "trees": 120,
       "max_depth": 12,
-      "nodes": 14586,
-      "kb": 99.943359375,
+      "nodes": 16284,
+      "kb": 111.55078125,
       "fits": true,
-      "cv_accuracy": 0.9821428571428571
+      "cv_accuracy": 0.9895833333333334
     },
     {
       "trees": 100,
       "max_depth": 12,
-      "nodes": 12218,
-      "kb": 83.716796875,
+      "nodes": 13464,
+      "kb": 92.234375,
       "fits": true,
-      "cv_accuracy": 0.9806547619047619
+      "cv_accuracy": 0.9836309523809523
     },
     {
       "trees": 80,
       "max_depth": 12,
-      "nodes": 9830,
-      "kb": 67.353515625,
+      "nodes": 10704,
+      "kb": 73.328125,
       "fits": true,
-      "cv_accuracy": 0.9806547619047619
+      "cv_accuracy": 0.9821428571428571
     },
     {
       "trees": 60,
       "max_depth": 12,
-      "nodes": 7418,
-      "kb": 50.826171875,
+      "nodes": 7856,
+      "kb": 53.8203125,
       "fits": true,
-      "cv_accuracy": 0.9747023809523809
+      "cv_accuracy": 0.9821428571428571
     },
     {
       "trees": 50,
       "max_depth": 10,
-      "nodes": 5006,
-      "kb": 34.318359375,
+      "nodes": 5052,
+      "kb": 34.6328125,
       "fits": true,
-      "cv_accuracy": 0.9747023809523809
+      "cv_accuracy": 0.9836309523809523
     },
     {
       "trees": 30,
       "max_depth": 8,
-      "nodes": 2114,
-      "kb": 14.509765625,
+      "nodes": 2242,
+      "kb": 15.384765625,
       "fits": true,
-      "cv_accuracy": 0.9568452380952381
+      "cv_accuracy": 0.9732142857142857
     },
     {
       "trees": 20,
       "max_depth": 8,
-      "nodes": 1412,
-      "kb": 9.69140625,
+      "nodes": 1524,
+      "kb": 10.45703125,
       "fits": true,
-      "cv_accuracy": 0.9553571428571429
+      "cv_accuracy": 0.9627976190476191
     },
     {
       "trees": 10,
       "max_depth": 6,
-      "nodes": 404,
-      "kb": 2.78125,
+      "nodes": 436,
+      "kb": 3.0,
       "fits": true,
-      "cv_accuracy": 0.7842261904761905
+      "cv_accuracy": 0.7723214285714286
     }
   ],
   "excluded_gestures": [

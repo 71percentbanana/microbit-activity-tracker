@@ -100,13 +100,14 @@ Uses simulated gestures (kept in `data/sim/` and `models/sim/`, never mixed with
 
 ## 🔌 On-board Model (the micro:bit recognises gestures by itself)
 
-The micro:bit can run the model without the laptop: it calculates the same 96 features and lets 150 small decision trees vote. With a battery pack it works anywhere.
+The micro:bit can run the model without the laptop: it calculates the same 96 features and lets 120 small decision trees vote. With a battery pack it works anywhere.
 
 ```bash
 python gesture/export_microbit.py           # train the compact model, write it into the firmware, build the .hex
 python gesture/export_microbit.py --flash   # ...and copy it onto the micro:bit
+python gesture/export_microbit.py --exclude c_b   # leave a gesture out (the shipped .hex leaves out custom gesture B)
 ```
-The script picks the largest model that fits in the micro:bit's memory (150 trees, depth 12, about 125 KB), checks that the micro:bit's calculation gives the same answers as the laptop's, and reports its accuracy on unseen recordings. Run it again after recording new gestures or adding teammates' data — the model on the micro:bit only changes when you re-export and flash.
+The script picks the largest model that fits in the micro:bit's memory (120 trees, depth 12, about 112 KB; 99.0% on unseen recordings), checks that the micro:bit's calculation gives the same answers as the laptop's, and reports its accuracy on unseen recordings. Run it again after recording new gestures or adding teammates' data — the model on the micro:bit only changes when you re-export and flash.
 
 - Flash the **.hex** (drag it onto the MICROBIT drive). Pasting this version into the MakeCode website isn't recommended: the model makes the code about 270 KB, and the website also tries to build for the older micro:bit V1, which is too small for it.
 - It needs a **micro:bit V2**.

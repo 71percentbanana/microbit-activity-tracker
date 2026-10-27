@@ -23,16 +23,16 @@
     "tilt_right",
     "up"
   ],
-  "trees": 150,
+  "trees": 120,
   "max_depth": 12,
-  "nodes": 18194,
-  "bytes": 127658,
+  "nodes": 16284,
+  "bytes": 114228,
   "threshold": 0.3,
-  "cv_accuracy": 0.9836309523809523,
+  "cv_accuracy": 0.9895833333333334,
   "agreement_with_sklearn": 1.0,
   "recordings": 672,
   "people": [
     "alan"
   ],
-  "exported_at": "2026-10-25 17:27"
+  "exported_at": "2026-10-28 00:12"
 }
