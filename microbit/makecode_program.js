@@ -1,20 +1,3 @@
-// Microsoft MakeCode JavaScript for BBC micro:bit
-// Records 3-axis accelerometer readings and streams them over USB Serial at 20 Hz (every 50 ms)
-//
-// Controls:
-//   Button A - start recording (shows "REC", resets activity statistics)
-//   Button B - stop recording (shows a checkmark)
-//
-// Serial line format (one line per sample):
-//   sampleCount,x,y,z,strength,activityLevel,averageActivity,peakActivity
-//   x, y, z and strength are in milli-g; activityLevel = |strength - 1000|
-//
-// Instructions:
-// 1. Open https://makecode.microbit.org/
-// 2. Click "New Project"
-// 3. Switch top tab from "Blocks" to "JavaScript"
-// 4. Paste this code and click "Download" to flash your micro:bit
-
 input.onButtonPressed(Button.A, function () {
     isRecording = true
     sampleCount = 0

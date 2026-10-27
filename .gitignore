@@ -29,3 +29,9 @@ gesture/data/*_deleted/
 dashboard/settings.json
 gesture/data/sim/
 gesture/models/
+gesture/microbit/build/node_modules/
+gesture/microbit/build/package-lock.json
+gesture/microbit/build/project/built/
+gesture/microbit/build/project/pxt_modules/
+gesture/microbit/build/project/main.ts
+gesture/microbit/build/project/.pxt/

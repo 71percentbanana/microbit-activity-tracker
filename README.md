@@ -33,7 +33,7 @@ ai_project/
 │   └── feature_importances.png    # Top feature importances visualization
 ├── microbit/
 │   └── microbit_sender.py         # MicroPython script for BBC micro:bit
-├── features.py                    # Feature extraction module (28 statistical features)
+├── features.py                    # Feature extraction module (107 statistical, spectral and rhythm features)
 ├── prepare_data.py                # Preprocesses WISDM raw data into sliding windows
 ├── train_model.py                 # Trains and evaluates Random Forest model
 ├── realtime_predict.py            # Serial receiver & real-time live predictor
@@ -50,7 +50,7 @@ pip install -r requirements.txt
 ```
 
 ### 2. Preprocess Data & Extract Features
-Reads the WISDM dataset, parses continuous streams, creates 2-second windows (40 samples @ 20 Hz, 50% overlap), and extracts time-domain statistical features:
+Reads the WISDM dataset, parses continuous streams, creates 2-second windows (40 samples @ 20 Hz, 50% overlap), and extracts 107 features per window: 28 time-domain statistics plus percentiles, skewness, kurtosis, jerk, frequency-spectrum bands, autocorrelation (step period) and axis correlations:
 ```bash
 python prepare_data.py --data_path "C:\Users\alanv\Downloads\WISDM_ar_latest\WISDM_ar_v1.1\WISDM_ar_v1.1_raw.txt"
 ```
@@ -60,6 +60,14 @@ Trains the model on extracted features and outputs metrics + plots:
 ```bash
 python train_model.py
 ```
+
+Results: **95.7%** on a random 80/20 split of windows and **85.1%** on 8 of the 36 WISDM participants held out of training entirely (76.3% with the 28 basic statistics alone).
+
+To compare the Random Forest with eight other classifiers (Extra Trees, gradient boosting, decision tree, SVM, k-NN, MLP, logistic regression, naive Bayes) on both the activity and gesture tasks, and to sweep the size of the on-board gesture model:
+```bash
+python compare_models.py --exclude c_b
+```
+`--exclude c_b` leaves out custom gesture B, which was recorded after the on-board model in the report was exported. Results go to `models/model_comparison.json` and `models/model_comparison.png`.
 
 ### 4. Flash micro:bit
 You can use either **Microsoft MakeCode** or the **Python Editor**:

@@ -370,7 +370,7 @@
     <section class="card about" data-view="activity">
       <h2>How the activity tracker works</h2>
       <p class="desc">Model from the activity tracker project (project root)</p>
-      <p>Every 0.5 s the last <b>2 seconds</b> of readings are resampled to <b>40 samples at 20 Hz</b>, converted to m/s², and turned into 28 statistics (mean, spread, range, RMS and median of X, Y, Z and overall strength). A <b>Random Forest</b> picks the activity; the display shows the most common of the last 3 predictions so it doesn't flicker. The micro:bit LEDs show it too.</p>
+      <p>Every 0.5 s the last <b>2 seconds</b> of readings are resampled to <b>40 samples at 20 Hz</b>, converted to m/s², and turned into 107 features (statistics of X, Y, Z and overall strength, plus the rhythm of the movement: step frequency, spectrum and autocorrelation). A <b>Random Forest</b> picks the activity; the display shows the most common of the last 3 predictions so it doesn't flicker. The micro:bit LEDs show it too.</p>
       <ul>
         <li>The model was trained on the <b>WISDM dataset</b>: phones carried upright in a front trouser pocket by 36 people. Wear the micro:bit the same way for the best results.</li>
         <li>It knows Walking, Jogging, Upstairs, Downstairs, Standing and Sitting. It was not trained on cycling.</li>
@@ -517,6 +517,7 @@ function renderLink(link) {
     color = 'var(--good)';
     text = link.port === 'DEMO' ? 'Demo micro:bit (simulated)' : `micro:bit on ${link.port}`;
     if (state && state.program === 'activity_recorder') text += ' · activity recorder program';
+    if (state && state.board_model) text += ' · on-board model';
   } else {
     color = 'var(--critical)';
     text = link.error || 'micro:bit not connected';
@@ -555,7 +556,7 @@ function renderPrediction(p, fresh) {
     : `Best guess ${esc(p.name)} at ${pct(p.confidence)} — below the ${p.threshold != null ? pct(p.threshold) + ' ' : 'confidence '}threshold · ${p.time}`;
   const truth = p.truth ? ` · simulated ${esc(nameOf(p.truth))} ${p.truth === p.gesture ? '✓' : '✗'}` : '';
   hero.className = 'hero';
-  hero.innerHTML = `<div class="glyph">${glyph(id)}</div><div><div class="name">${esc(title)}</div><div class="meta">${meta}${truth}</div></div>`;
+  hero.innerHTML = `<div class="glyph">${glyph(id)}</div><div><div class="name">${esc(title)}</div><div class="meta">${meta}${truth}</div>${boardLine(p)}</div>`;
   if (fresh) { void hero.offsetWidth; hero.classList.add('flash'); }
 
   const order = Object.keys(p.probs).sort((x, y) => p.probs[y] - p.probs[x]).slice(0, 5);
@@ -563,6 +564,13 @@ function renderPrediction(p, fresh) {
     const v = p.probs[g];
     return `<div class="prob ${g === p.gesture ? 'top' : ''}"><span class="label">${esc(nameOf(g))}</span><span class="track"><span class="fill" style="width:${(v * 100).toFixed(1)}%"></span></span><span class="val">${pct(v)}</span></div>`;
   }).join('');
+}
+
+// The micro:bit's own answer (on-board model), next to the laptop's
+function boardLine(p) {
+  if (!p.board) return '';
+  const same = p.board.gesture === p.gesture;
+  return `<div class="meta">micro:bit on its own: <b>${esc(p.board.name)}</b> at ${pct(p.board.confidence)} · ${same ? '✓ same as the laptop' : '✗ different from the laptop'}</div>`;
 }
 
 function renderRecord() {
@@ -620,7 +628,8 @@ function renderHistory() {
   }
   list.innerHTML = state.history.slice(0, 8).map((p) => {
     const id = p.confident ? p.gesture : 'unknown';
-    const truth = p.truth ? `<div class="truth">simulated ${esc(nameOf(p.truth))} ${p.truth === p.gesture ? '✓' : '✗'}</div>` : '';
+    const truth = p.truth ? `<div class="truth">simulated ${esc(nameOf(p.truth))} ${p.truth === p.gesture ? '✓' : '✗'}</div>`
+      : p.board ? `<div class="truth">micro:bit: ${esc(p.board.name)} ${pct(p.board.confidence)} ${p.board.gesture === p.gesture ? '✓' : '✗'}</div>` : '';
     return `<li><span class="t">${p.time}</span>${glyph(id)}<span>${p.confident ? esc(p.name) : `Not sure (${esc(p.name)}?)`}${truth}</span><span class="c">${pct(p.confidence)}</span></li>`;
   }).join('');
 }

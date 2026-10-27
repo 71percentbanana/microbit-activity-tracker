@@ -1,7 +1,7 @@
 """
 Data preparation script for WISDM accelerometer dataset.
 Parses raw data, cleans malformed entries, segments into sliding windows,
-and extracts time-domain statistical features for ML training.
+and extracts statistical, spectral and rhythm features (features.py) for ML training.
 """
 
 import os

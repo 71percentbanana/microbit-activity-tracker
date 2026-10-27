@@ -127,7 +127,7 @@ FEATURE_NAMES = (
 )
 
 
-def extract_features(recording: np.ndarray) -> np.ndarray:
+def extract_features(recording: np.ndarray, dtype=np.float32) -> np.ndarray:
     """
     Extract features from one gesture recording.
 
@@ -135,6 +135,9 @@ def extract_features(recording: np.ndarray) -> np.ndarray:
     -----------
     recording : np.ndarray
         Array of shape (N, 3) where columns are [x, y, z] in milli-g, N >= MIN_SAMPLES.
+    dtype : numpy dtype
+        float32 for training and the laptop's predictions; export_microbit.py uses float64
+        to mirror the micro:bit, which calculates in double precision.
 
     Returns:
     --------
@@ -172,4 +175,4 @@ def extract_features(recording: np.ndarray) -> np.ndarray:
     for arr in signals:
         feats.extend(resample(arr))
 
-    return np.array(feats, dtype=np.float32)
+    return np.array(feats, dtype=dtype)

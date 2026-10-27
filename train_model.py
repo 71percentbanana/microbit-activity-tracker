@@ -84,11 +84,11 @@ def train_and_evaluate(features_path: str, output_dir: str, n_estimators: int = 
     plt.close()
     print(f"Saved confusion matrix plot to {cm_path}")
 
-    # Feature Importance Plot
+    # Feature Importance Plot (top 20 of the 107 features)
     importances = rf.feature_importances_
-    indices = np.argsort(importances)[::-1]
+    indices = np.argsort(importances)[::-1][:20]
     plt.figure(figsize=(10, 6))
-    plt.title("Top Feature Importances (Random Forest)")
+    plt.title("Top 20 Feature Importances (Random Forest)")
     plt.bar(range(len(indices)), importances[indices], align="center", color="#2b5c8f")
     plt.xticks(range(len(indices)), [FEATURE_NAMES[i] for i in indices], rotation=90)
     plt.tight_layout()

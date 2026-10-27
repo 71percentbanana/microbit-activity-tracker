@@ -1,0 +1,9 @@
+{
+  "name": "microbit-gesture-build",
+  "private": true,
+  "description": "Local MakeCode compiler used by gesture/export_microbit.py to build gesture_classifier.hex",
+  "dependencies": {
+    "pxt": "^0.5.1",
+    "pxt-microbit": "^9.1.1"
+  }
+}

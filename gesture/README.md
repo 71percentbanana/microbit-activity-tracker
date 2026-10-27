@@ -34,7 +34,9 @@ The micro:bit LEDs show the result: arrows for swipes, up/down and tilts, a smal
 gesture/
 ├── microbit/
 │   ├── gesture_makecode.js   # MakeCode program: streams x,y,z, hold A to record, shows result on LEDs
-│   └── gesture_classifier.hex # Same program, compiled - drag onto the MICROBIT drive to flash
+│   ├── gesture_classifier.hex # Same program, compiled (with the on-board model) - drag onto the MICROBIT drive
+│   ├── onboard_model.json    # Details of the model inside the .hex (classes, size, accuracy)
+│   └── build/                # Local MakeCode compiler used by export_microbit.py
 ├── data/raw/<person>/<gesture>/*.csv  # Recordings, one folder per person (one CSV per gesture performance)
 ├── models/                   # Created by training (not in git - click Train model after pulling)
 │   ├── gesture_rf.joblib     # Trained Random Forest model
@@ -42,6 +44,7 @@ gesture/
 │   └── confusion_matrix.png  # Confusion matrix plot for the report
 ├── gesture_features.py       # Feature extraction (statistics + time-normalised shape)
 ├── train.py                  # Trains and evaluates the model
+├── export_microbit.py        # Puts a compact model on the micro:bit itself (TinyML)
 ├── simulator.py              # Synthetic gestures for --demo mode
 └── requirements.txt
 ```
@@ -92,6 +95,23 @@ cd ../dashboard
 python server.py --demo
 ```
 Uses simulated gestures (kept in `data/sim/` and `models/sim/`, never mixed with real recordings). Demo accuracy is meaningless — use it only to try the dashboard.
+
+---
+
+## 🔌 On-board Model (the micro:bit recognises gestures by itself)
+
+The micro:bit can run the model without the laptop: it calculates the same 96 features and lets 150 small decision trees vote. With a battery pack it works anywhere.
+
+```bash
+python gesture/export_microbit.py           # train the compact model, write it into the firmware, build the .hex
+python gesture/export_microbit.py --flash   # ...and copy it onto the micro:bit
+```
+The script picks the largest model that fits in the micro:bit's memory (150 trees, depth 12, about 125 KB), checks that the micro:bit's calculation gives the same answers as the laptop's, and reports its accuracy on unseen recordings. Run it again after recording new gestures or adding teammates' data — the model on the micro:bit only changes when you re-export and flash.
+
+- Flash the **.hex** (drag it onto the MICROBIT drive). Pasting this version into the MakeCode website isn't recommended: the model makes the code about 270 KB, and the website also tries to build for the older micro:bit V1, which is too small for it.
+- It needs a **micro:bit V2**.
+- With the dashboard open, each gesture shows the **micro:bit's own answer** next to the laptop's, and the LEDs show the micro:bit's answer.
+- The compiler is set up once in `microbit/build` (`npm install`, `npx pxt target microbit`, then `npx pxt install` in `microbit/build/project`). Without it, the script still writes the model into `gesture_makecode.js`.
 
 ---
 

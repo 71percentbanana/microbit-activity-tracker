@@ -85,6 +85,8 @@ class Hub:
         self.saved_paths = []  # recordings saved this session, for undo
         self.person = 'sim' if demo else self.load_settings().get('person', '')
         self.program = None  # 'gesture' or 'activity_recorder', detected from the serial data
+        self.board_model = False  # True once the micro:bit sends its own predictions (PRED lines)
+        self.board_prediction = None  # the micro:bit's answer for the gesture that is just ending
         self.training = False
         self.model = None
         self.metrics = None
@@ -150,6 +152,8 @@ class Hub:
             'target': TARGET_PER_GESTURE,
             'link': self.link_status,
             'program': self.program,
+            'board_model': self.board_model,
+            'onboard': self.load_onboard_info(),
             'demo': self.demo,
             'has_model': self.model is not None,
             'metrics': self.metrics,
@@ -210,7 +214,33 @@ class Hub:
         else:
             self.predict(rec, duration, truth)
 
+    @staticmethod
+    def load_onboard_info():
+        """Details of the model last exported to the micro:bit (gesture/microbit/onboard_model.json)."""
+        try:
+            with open(os.path.join(GESTURE_DIR, "microbit", "onboard_model.json")) as f:
+                return json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return None
+
+    def on_board_prediction(self, index: int, percent: int):
+        """The micro:bit recognised the gesture itself; it sends this just before END."""
+        info = self.load_onboard_info()
+        classes = info['classes'] if info else []
+        gesture = classes[index] if 0 <= index < len(classes) else None
+        self.board_prediction = {
+            'gesture': gesture,
+            'name': GESTURE_NAMES.get(gesture, gesture or f'class {index}'),
+            'confidence': percent / 100,
+        }
+        if not self.board_model:
+            self.board_model = True
+            self.broadcast('notice', {'level': 'good', 'text': 'The micro:bit is recognising gestures by itself (on-board model). '
+                                      "The dashboard shows its answer next to the laptop's."})
+            self.broadcast('state', self.state())
+
     def save_recording(self, rec: np.ndarray):
+        self.board_prediction = None  # not needed while recording training data
         if not self.person:
             self.broadcast('notice', {'level': 'warn', 'text': 'Type your name in "Recording as" first - recordings are saved per person.'})
             return
@@ -231,7 +261,8 @@ class Hub:
         best = int(np.argmax(probs))
         gesture, confidence = classes[best], float(probs[best])
         confident = confidence >= CONFIDENCE_THRESHOLD
-        self.send_to_microbit(LED_CODES.get(gesture, 'CUSTOM') if confident else "?")
+        if not self.board_model:
+            self.send_to_microbit(LED_CODES.get(gesture, 'CUSTOM') if confident else "?")
         result = {
             'gesture': gesture,
             'name': GESTURE_NAMES.get(gesture, gesture),
@@ -243,7 +274,9 @@ class Hub:
             'duration_s': round(duration, 2),
             'time': time.strftime('%H:%M:%S'),
             'truth': truth,
+            'board': self.board_prediction,
         }
+        self.board_prediction = None
         self.history.appendleft(result)
         self.broadcast('prediction', result)
 
@@ -396,6 +429,13 @@ class SerialLink(threading.Thread):
         while True:
             line = ser.readline().decode('utf-8', errors='ignore').strip()
             if not line:
+                continue
+            if line.startswith('PRED:'):
+                try:
+                    index, percent = (int(v) for v in line[5:].split(','))
+                except ValueError:
+                    continue
+                self.hub.on_board_prediction(index, percent)
                 continue
             if line == 'START':
                 recording = []
