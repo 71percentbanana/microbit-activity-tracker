@@ -18,7 +18,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.preprocessing import LabelEncoder
-from features import FEATURE_NAMES
+from features import FEATURE_NAMES, SAMPLING_RATE_HZ, WINDOW_SAMPLES, STEP_SAMPLES
 
 def train_and_evaluate(features_path: str, output_dir: str, n_estimators: int = 120, test_size: float = 0.2):
     os.makedirs(output_dir, exist_ok=True)
@@ -110,10 +110,10 @@ def train_and_evaluate(features_path: str, output_dir: str, n_estimators: int = 
         "accuracy": float(accuracy),
         "classes": class_names,
         "feature_names": FEATURE_NAMES,
-        "sampling_rate_hz": 20,
-        "window_size_samples": 40,
-        "window_duration_seconds": 2.0,
-        "step_size_samples": 20,
+        "sampling_rate_hz": SAMPLING_RATE_HZ,
+        "window_size_samples": WINDOW_SAMPLES,
+        "window_duration_seconds": WINDOW_SAMPLES / SAMPLING_RATE_HZ,
+        "step_size_samples": STEP_SAMPLES,
         "n_estimators": n_estimators
     }
     with open(metadata_path, "w") as f:

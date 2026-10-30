@@ -19,7 +19,7 @@ try:
 except ImportError:
     HAS_SERIAL = False
 
-from features import extract_window_features
+from features import extract_window_features, WINDOW_SAMPLES
 
 # Conversion constant: micro:bit milli-g to m/s² (1000 mg = 1g = 9.80665 m/s²)
 MG_TO_MS2 = 9.80665 / 1000.0
@@ -37,7 +37,7 @@ def find_microbit_port():
             return p.device
     return None
 
-def run_simulation(rf, label_encoder, window_size=40):
+def run_simulation(rf, label_encoder, window_size=WINDOW_SAMPLES):
     """
     Run simulated accelerometer streaming from test patterns to verify pipeline.
     """
@@ -87,7 +87,7 @@ def run_simulation(rf, label_encoder, window_size=40):
 
     print("\nSimulation test finished successfully.")
 
-def run_serial_stream(port, baudrate, rf, label_encoder, window_size=40, step_eval=10):
+def run_serial_stream(port, baudrate, rf, label_encoder, window_size=WINDOW_SAMPLES, step_eval=10):
     """
     Listen to live serial stream from physical BBC micro:bit and predict activity.
     """

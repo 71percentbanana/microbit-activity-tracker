@@ -305,7 +305,7 @@
 
     <section class="card" data-view="activity">
       <h2>Current activity</h2>
-      <p class="desc" id="act-desc">Classified from the last 2 seconds of readings, twice a second.</p>
+      <p class="desc" id="act-desc">Classified from the last 10 seconds of readings, twice a second.</p>
       <div class="hero empty" id="act-hero"></div>
       <div class="probs" id="act-probs"></div>
       <div class="device" id="act-device" hidden></div>
@@ -370,7 +370,7 @@
     <section class="card about" data-view="activity">
       <h2>How the activity tracker works</h2>
       <p class="desc">Model from the activity tracker project (project root)</p>
-      <p>Every 0.5 s the last <b>2 seconds</b> of readings are resampled to <b>40 samples at 20 Hz</b>, converted to m/s², and turned into 107 features (statistics of X, Y, Z and overall strength, plus the rhythm of the movement: step frequency, spectrum and autocorrelation). A <b>Random Forest</b> picks the activity; the display shows the most common of the last 3 predictions so it doesn't flicker. The micro:bit LEDs show it too.</p>
+      <p>Every 0.5 s the last <b>10 seconds</b> of readings are resampled to <b>200 samples at 20 Hz</b>, converted to m/s², and turned into 107 features (statistics of X, Y, Z and overall strength, plus the rhythm of the movement: step frequency, spectrum and autocorrelation). A <b>Random Forest</b> picks the activity; the display shows the most common of the last 3 predictions so it doesn't flicker. The micro:bit LEDs show it too.</p>
       <ul>
         <li>The model was trained on the <b>WISDM dataset</b>: phones carried upright in a front trouser pocket by 36 people. Wear the micro:bit the same way for the best results.</li>
         <li>It knows Walking, Jogging, Upstairs, Downstairs, Standing and Sitting. It was not trained on cycling.</li>
@@ -747,8 +747,8 @@ function renderActivityLive() {
     if (!last || Date.now() / 1000 - last.t > 3) {
       hero.className = 'hero empty';
       const tip = state.program === 'activity_recorder'
-        ? 'Press <b>A</b> on the micro:bit to start streaming (B stops). Results appear after 2 seconds.'
-        : 'Needs 2 seconds of continuous data from the micro:bit.';
+        ? 'Press <b>A</b> on the micro:bit to start streaming (B stops). Results appear after 10 seconds.'
+        : 'Needs 10 seconds of continuous data from the micro:bit.';
       hero.innerHTML = `<div class="glyph" style="color:var(--text-muted)">${glyph('unknown')}</div><div><div class="name">Waiting for readings…</div><div class="meta">${tip}</div></div>`;
       probs.innerHTML = '';
     } else {

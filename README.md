@@ -50,7 +50,7 @@ pip install -r requirements.txt
 ```
 
 ### 2. Preprocess Data & Extract Features
-Reads the WISDM dataset, parses continuous streams, creates 2-second windows (40 samples @ 20 Hz, 50% overlap), and extracts 107 features per window: 28 time-domain statistics plus percentiles, skewness, kurtosis, jerk, frequency-spectrum bands, autocorrelation (step period) and axis correlations:
+Reads the WISDM dataset, parses continuous streams, creates 10-second windows (200 samples @ 20 Hz, one per second), and extracts 107 features per window: 28 time-domain statistics plus percentiles, skewness, kurtosis, jerk, frequency-spectrum bands, autocorrelation (step period) and axis correlations:
 ```bash
 python prepare_data.py --data_path "C:\Users\alanv\Downloads\WISDM_ar_latest\WISDM_ar_v1.1\WISDM_ar_v1.1_raw.txt"
 ```
@@ -61,7 +61,7 @@ Trains the model on extracted features and outputs metrics + plots:
 python train_model.py
 ```
 
-Results: **95.7%** on a random 80/20 split of windows and **85.1%** on 8 of the 36 WISDM participants held out of training entirely (76.3% with the 28 basic statistics alone).
+Results: **91.3%** on 8 of the 36 WISDM participants held out of training entirely (85.1% with 2-second windows, 76.3% with 2-second windows and only the 28 basic statistics). A random 80/20 split of windows gives 99.8%, but that figure is inflated: windows one second apart share 90% of their samples, so near-duplicates land on both sides of the split.
 
 To compare the Random Forest with eight other classifiers (Extra Trees, gradient boosting, decision tree, SVM, k-NN, MLP, logistic regression, naive Bayes) on both the activity and gesture tasks, and to sweep the size of the on-board gesture model:
 ```bash
@@ -103,4 +103,4 @@ Flash [`gesture/microbit/gesture_classifier.hex`](gesture/microbit/gesture_class
 ```bash
 python dashboard/server.py
 ```
-The dashboard opens at http://localhost:8000. In the **Activity** view, the last 2 seconds of the micro:bit's readings are classified with this folder's Random Forest twice a second. The view shows the current activity, a 5-minute timeline, time spent in each activity, and the model's evaluation, including accuracy on people the model never saw. The micro:bit LEDs show the activity as well. Wear the micro:bit upright in a front trouser pocket, as the WISDM phones were.
+The dashboard opens at http://localhost:8000. In the **Activity** view, the last 10 seconds of the micro:bit's readings are classified with this folder's Random Forest twice a second. The view shows the current activity, a 5-minute timeline, time spent in each activity, and the model's evaluation, including accuracy on people the model never saw. The micro:bit LEDs show the activity as well. Wear the micro:bit upright in a front trouser pocket, as the WISDM phones were.

@@ -1,14 +1,14 @@
-Test Accuracy: 95.68%
+Test Accuracy: 99.82%
 
               precision    recall  f1-score   support
 
-  Downstairs     0.9307    0.7960    0.8581       995
-     Jogging     0.9825    0.9883    0.9854      3412
-     Sitting     1.0000    0.9814    0.9906       592
-    Standing     0.9835    0.9979    0.9906       477
-    Upstairs     0.8856    0.8638    0.8746      1219
-     Walking     0.9524    0.9879    0.9698      4232
+  Downstairs     0.9947    0.9926    0.9936       944
+     Jogging     1.0000    0.9997    0.9999      3361
+     Sitting     1.0000    0.9982    0.9991       555
+    Standing     0.9977    1.0000    0.9989       438
+    Upstairs     0.9890    0.9991    0.9940      1168
+     Walking     1.0000    0.9978    0.9989      4175
 
-    accuracy                         0.9568     10927
-   macro avg     0.9558    0.9359    0.9449     10927
-weighted avg     0.9563    0.9568    0.9559     10927
+    accuracy                         0.9982     10641
+   macro avg     0.9969    0.9979    0.9974     10641
+weighted avg     0.9982    0.9982    0.9982     10641

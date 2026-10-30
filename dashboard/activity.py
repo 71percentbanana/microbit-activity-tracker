@@ -2,8 +2,8 @@
 Live activity recognition for the dashboard, using the activity tracker's trained
 Random Forest (../models/random_forest_har.joblib, trained on the WISDM dataset).
 
-The micro:bit streams readings continuously, so every 0.5 s the last 2 s of readings are
-resampled to the model's 20 Hz / 40-sample window, converted from milli-g to m/s², and
+The micro:bit streams readings continuously, so every 0.5 s the last 10 s of readings are
+resampled to the model's 20 Hz / 200-sample window, converted from milli-g to m/s², and
 classified with the activity tracker's own feature extraction (../features.py).
 """
 
@@ -18,7 +18,7 @@ import joblib
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT_DIR)
-from features import extract_window_features, FEATURE_NAMES  # activity tracker features
+from features import extract_window_features, FEATURE_NAMES, SAMPLING_RATE_HZ, WINDOW_SAMPLES  # activity tracker features
 
 MODEL_DIR = os.path.join(ROOT_DIR, "models")
 FEATURES_PATH = os.path.join(ROOT_DIR, "data", "features.csv")
@@ -29,8 +29,8 @@ ACTIVITY_ORDER = ['Walking', 'Jogging', 'Upstairs', 'Downstairs', 'Standing', 'S
 
 # Conversion constant: micro:bit milli-g to m/s² (1000 mg = 1g = 9.80665 m/s²)
 MG_TO_MS2 = 9.80665 / 1000.0
-WINDOW_S = 2.0      # model window: 40 samples @ 20 Hz
-WINDOW_POINTS = 40
+WINDOW_S = WINDOW_SAMPLES / SAMPLING_RATE_HZ  # model window: 200 samples @ 20 Hz = 10 s
+WINDOW_POINTS = WINDOW_SAMPLES
 STEP_S = 0.5        # classify twice a second
 MAX_GAP_S = 0.5     # skip windows where the stream paused
 SMOOTHING = 3       # the displayed activity is the most common of the last 3 predictions

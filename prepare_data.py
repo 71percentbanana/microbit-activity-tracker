@@ -8,7 +8,7 @@ import os
 import argparse
 import numpy as np
 import pandas as pd
-from features import extract_window_features, FEATURE_NAMES
+from features import extract_window_features, FEATURE_NAMES, WINDOW_SAMPLES, STEP_SAMPLES
 
 def load_and_clean_wisdm(file_path: str) -> pd.DataFrame:
     """
@@ -51,7 +51,7 @@ def load_and_clean_wisdm(file_path: str) -> pd.DataFrame:
     df.reset_index(drop=True, inplace=True)
     return df
 
-def generate_window_features(df: pd.DataFrame, window_size: int = 40, step_size: int = 20) -> pd.DataFrame:
+def generate_window_features(df: pd.DataFrame, window_size: int = WINDOW_SAMPLES, step_size: int = STEP_SAMPLES) -> pd.DataFrame:
     """
     Segment the data into sliding windows without crossing user or activity boundaries.
     Extract statistical features for each window.
@@ -61,7 +61,7 @@ def generate_window_features(df: pd.DataFrame, window_size: int = 40, step_size:
     df : pd.DataFrame
         Cleaned accelerometer dataframe.
     window_size : int
-        Window length in samples (40 samples @ 20Hz = 2.0 seconds).
+        Window length in samples (200 samples @ 20Hz = 10 seconds).
     step_size : int
         Step size between windows (20 samples = 50% overlap).
     """
@@ -102,8 +102,8 @@ def main():
         default="data/features.csv",
         help="Path where extracted feature CSV should be saved."
     )
-    parser.add_argument('--window_size', type=int, default=40, help="Window size in samples (default 40 = 2s @ 20Hz)")
-    parser.add_argument('--step_size', type=int, default=20, help="Window step size in samples (default 20 = 50% overlap)")
+    parser.add_argument('--window_size', type=int, default=WINDOW_SAMPLES, help="Window size in samples (default 200 = 10 s @ 20Hz)")
+    parser.add_argument('--step_size', type=int, default=STEP_SAMPLES, help="Window step size in samples (default 20 = one window per second)")
     args = parser.parse_args()
 
     os.makedirs(os.path.dirname(args.output_path), exist_ok=True)

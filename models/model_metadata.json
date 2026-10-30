@@ -1,6 +1,6 @@
 {
   "model_type": "RandomForestClassifier",
-  "accuracy": 0.956804246362222,
+  "accuracy": 0.9982144535288037,
   "classes": [
     "Downstairs",
     "Jogging",
@@ -119,8 +119,8 @@
     "corr_yz"
   ],
   "sampling_rate_hz": 20,
-  "window_size_samples": 40,
-  "window_duration_seconds": 2.0,
+  "window_size_samples": 200,
+  "window_duration_seconds": 10.0,
   "step_size_samples": 20,
   "n_estimators": 120
 }
